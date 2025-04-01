@@ -1,0 +1,151 @@
+# yamllint disable-file
+# SPDX-FileCopyrightText: (C) 2024 Intel Corporation
+#
+# SPDX-License-Identifier: Apache-2.0
+
+{{- $registry := .Values.global.registry -}}
+{{- if .Values.image.registry -}}
+{{- $registry = .Values.image.registry -}}
+{{- end -}}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "config-provisioner.fullname" . }}
+  {{- with .Values.annotations }}
+  annotations:
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "config-provisioner.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "config-provisioner.labels" . | nindent 8 }}
+        version: {{ .Chart.AppVersion | quote }}
+    spec:
+      serviceAccountName: {{ template "app-tenant-controller.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: config-provisioner
+        {{- $appVersion := .Chart.AppVersion }}
+        {{- with .Values.image }}
+        image: "{{- if hasKey $registry "name" }}{{ $registry.name }}/{{- end -}}{{ .repository }}:{{ default $appVersion .tag }}"
+        {{- end }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        env:
+        {{- with .Values.configProvisioner.http_proxy }}
+        - name: HTTP_PROXY
+          value: {{ . }}
+        {{- end }}
+        {{- with .Values.configProvisioner.https_proxy }}
+        - name: HTTPS_PROXY
+          value: {{ . }}
+        {{- end }}
+        {{- with .Values.configProvisioner.no_proxy }}
+        - name: NO_PROXY
+          value: {{ . }}
+        {{- end }}
+        # When true, the provisioner uses the M2M token to access cluster services. Set this for production deployments
+        - name: USE_M2M_TOKEN
+          value: {{  .Values.configProvisioner.useM2MToken | quote }}
+
+        # service address configurations
+        - name: HARBOR_SERVER
+          value: {{  .Values.configProvisioner.harborServer | quote }}
+        - name: HARBOR_NAMESPACE
+          value: {{  .Values.configProvisioner.harborNamespace | quote }}
+        - name: HARBOR_ADMIN_CREDENTIAL
+          value: {{  .Values.configProvisioner.harborAdminCredential | quote }}
+        - name: CATALOG_SERVER
+          value: {{  .Values.configProvisioner.catalogServer | quote }}
+        - name: RELEASE_SERVICE_BASE
+          value: {{ .Values.configProvisioner.releaseServiceBase | quote }}
+        - name: KEYCLOAK_SERVER
+          value: {{  .Values.configProvisioner.keycloakServer | quote }}
+        - name: KEYCLOAK_SERVICE_BASE
+          value: {{  .Values.configProvisioner.keycloakServiceBase | quote }}
+        - name: KEYCLOAK_NAMESPACE
+          value: {{  .Values.configProvisioner.keycloakNamespace | quote }}
+        - name: KEYCLOAK_SECRET
+          value: {{  .Values.configProvisioner.keycloakSecret | quote }}
+        - name: ADM_SERVER
+          value: {{  .Values.configProvisioner.admServer | quote }}
+        - name: VAULT_SERVER
+          value: {{  .Values.configProvisioner.vaultServer | quote }}
+        - name: SERVICE_ACCOUNT
+          value: {{  .Values.configProvisioner.serviceAccount | quote }}
+
+        # release service configurations
+        - name: REGISTRY_HOST_EXTERNAL
+          value: {{ .Values.configProvisioner.harborServerExternal }}
+        - name: REGISTRY_HOST
+          value: {{ .Values.configProvisioner.harborServer }}
+        - name: RS_ROOT_URL
+          value: {{ .Values.configProvisioner.releaseServiceRootUrl }}
+        - name: RS_PROXY_ROOT_URL
+          value: {{ .Values.configProvisioner.releaseServiceProxyRootUrl }}
+        - name: MANIFEST_PATH
+          value: {{ .Values.configProvisioner.manifestPath }}
+        - name: MANIFEST_TAG
+          value: {{ .Values.configProvisioner.manifestTag }}
+
+        # settings for error retry
+        - name: INITIAL_SLEEP_INTERVAL
+          value: {{ .Values.configProvisioner.initialSleepInterval | quote }}
+        - name: MAX_WAIT_TIME
+          value: {{ .Values.configProvisioner.maxWaitTime | quote }}
+        - name: NUMBER_WORKER_THREADS
+          value: {{ .Values.configProvisioner.numberWorkerThreads | quote }}
+
+        # http proxy settings
+        - name: http_proxy
+          value: {{ .Values.configProvisioner.httpProxy }}
+        - name: https_proxy
+          value: {{ .Values.configProvisioner.httpsProxy }}
+        - name: no_proxy
+          value: {{ .Values.configProvisioner.noProxy }}
+
+        {{- with .Values.resources }}
+        resources:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+          - name: logging
+            mountPath: /etc/dazl
+          - name: tmp
+            mountPath: /tmp
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logging
+          configMap:
+            name: {{ template "config-provisioner.fullname" . }}

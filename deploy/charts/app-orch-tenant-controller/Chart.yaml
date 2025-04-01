@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: (C) 2024 Intel Corporation
+#
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: v2
+description: Tenant Controller
+name: app-orch-tenant-controller
+version: 0.2.8-dev
+annotations:
+  revision: ""
+  created: ""
+appVersion: "0.2.8-dev"

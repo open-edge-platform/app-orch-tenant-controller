@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: (C) 2024 Intel Corporation
+#
+# SPDX-License-Identifier: Apache-2.0
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: catalog-harbor-secret-reader
+  namespace:  {{ .Values.configProvisioner.harborNamespace }}
+roleRef:
+  kind: Role
+  name: catalog-harbor-secret-reader
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.configProvisioner.serviceAccount }}
+    namespace:  {{ .Values.configProvisioner.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: catalog-keycloak-secret-reader
+  namespace:  {{ .Values.configProvisioner.platformNamespace }}
+roleRef:
+  kind: Role
+  name: catalog-keycloak-secret-reader
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.configProvisioner.serviceAccount }}
+    namespace:  {{ .Values.configProvisioner.namespace }}

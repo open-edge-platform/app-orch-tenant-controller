@@ -1,0 +1,118 @@
+# SPDX-FileCopyrightText: (C) 2024 Intel Corporation
+#
+# SPDX-License-Identifier: Apache-2.0
+---
+global:
+  registry:
+    name: registry-rs.edgeorchestration.intel.com/edge-orch
+
+# -- imagePullSecrets are used when pulling images from private repos.
+imagePullSecrets: []
+
+image:
+  registry:
+    name: registry-rs.edgeorchestration.intel.com/edge-orch
+    imagePullSecrets: []
+  repository: app/app-orch-tenant-controller
+  pullPolicy: IfNotPresent
+
+# -- podSecurityContext is the runtime context of the pod.
+podSecurityContext:
+  runAsUser: 65532
+  runAsGroup: 65532
+  runAsNonRoot: true
+
+# -- securityContext defines pod's capabilities and permissions in the host.
+securityContext:
+  runAsUser: 65532
+  runAsGroup: 65532
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop:
+      - "ALL"
+
+configProvisioner:
+  # When true, the provisioner uses the M2M token to access cluster services. Set this for production deployments
+  useM2MToken: false
+
+  # service address configurations
+  harborServer: http://harbor-oci-core.orch-harbor.svc.cluster.local:80
+  catalogServer: catalog-service-grpc-server.orch-app.svc.cluster.local:8080
+  releaseServiceBase: "rs-proxy.rs-proxy.svc.cluster.local:8081"
+  keycloakServiceBase: "http://platform-keycloak.orch-platform.svc.cluster.local:8080"
+  admServer: app-deployment-api-grpc-server.orch-app.svc.cluster.local:8080
+  keycloakSecret: "platform-keycloak"
+  serviceAccount: "orch-svc"
+  vaultServer: "http://vault.orch-platform.svc.cluster.local:8200"
+  keycloakServer: "https://localhost:9090"
+
+  # release service configurations
+  harborServerExternal: https://registry-oci.kind.internal
+  releaseServiceRootUrl: ""
+  releaseServiceProxyRootUrl: "oci://rs-proxy.rs-proxy.svc.cluster.local:8443"
+  manifestPath: "/edge-orch/en/files/manifest"
+  manifestTag: "latest"
+
+  httpProxy: ""
+  httpsProxy: ""
+  noProxy: ""
+
+  harborAdminCredential: "harbor-admin-credential"
+
+  # namespaces
+  namespace: orch-app
+  keycloakNamespace: "orch-platform"
+  harborNamespace: "orch-harbor"
+  platformNamespace: "orch-platform"
+
+  # number of worker threads to allocate
+  numberWorkerThreads: "2"
+
+  # settings for error retry. Times are in seconds
+  initialSleepInterval: "120"
+  maxWaitTime: "600"
+
+annotations: {}
+labels: {}
+
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+# Optional additional annotations to add to the controller Deployment
+# deploymentAnnotations: {}
+
+# Use these variables to configure the HTTP_PROXY environment variables
+# http_proxy: "http://proxy:8080"
+# https_proxy: "https://proxy:8080"
+# no_proxy: 127.0.0.1,localhost
+
+logging:
+  encoders:
+    json:
+      fields:
+        - message
+        - level:
+            format: uppercase
+        - caller:
+            format: short
+        - timestamp:
+            format: iso8601
+
+  writers:
+    stdout:
+      encoder: json
+
+  rootLogger:
+    level: info
+    outputs:
+      - stdout

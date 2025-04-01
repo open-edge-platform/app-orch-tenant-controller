@@ -1,0 +1,12 @@
+Configuration Provisioner
+---
+
+The Configuration Provisioner creates and destroys resources required to create and destroy
+projects
+
+---
+revision: {{ .Chart.Annotations.revision }}
+created: {{ .Chart.Annotations.created }}
+SPDX-License-Identifier: Apache-2.0
+
+Copyright (C) 2024 Intel Corporation

@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+#
+# SPDX-License-Identifier: Apache-2.0
+
+.idea/
+bin/
+vendor/
+build/_output/
+coverage.*
+venv-env/
+ci/
+artifacts/
+.cache/

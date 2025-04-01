@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: (C) 2024 Intel Corporation
+#
+# SPDX-License-Identifier: Apache-2.0
+---
+ignore: |
+  vendor/*
+  .github/
+  ci/
+rules:
+  line-length:
+    max: 200
