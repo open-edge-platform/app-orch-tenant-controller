@@ -10,9 +10,9 @@ require (
 	github.com/labstack/gommon v0.4.2
 	github.com/open-edge-platform/app-orch-catalog v0.11.21
 	github.com/open-edge-platform/app-orch-deployment/app-deployment-manager/api/nbi/v2 v2.3.21
-	github.com/open-edge-platform/orch-library/go v0.5.29
-	github.com/open-edge-platform/orch-library/go/dazl v0.5.2
-	github.com/open-edge-platform/orch-library/go/dazl/zap v0.5.2
+	github.com/open-edge-platform/orch-library/go v0.5.30
+	github.com/open-edge-platform/orch-library/go/dazl v0.5.4
+	github.com/open-edge-platform/orch-library/go/dazl/zap v0.5.4
 	github.com/open-edge-platform/orch-utils/tenancy-datamodel v0.0.0-20250401180309-9c2571c45857
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/grpc v1.70.0
