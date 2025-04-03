@@ -8,7 +8,7 @@ go 1.23.2
 
 require (
 	github.com/labstack/gommon v0.4.2
-	github.com/open-edge-platform/app-orch-catalog v0.11.21
+	github.com/open-edge-platform/app-orch-catalog v0.11.24
 	github.com/open-edge-platform/app-orch-deployment/app-deployment-manager/api/nbi/v2 v2.3.21
 	github.com/open-edge-platform/orch-library/go v0.5.30
 	github.com/open-edge-platform/orch-library/go/dazl v0.5.4
