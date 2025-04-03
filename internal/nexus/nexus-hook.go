@@ -166,21 +166,9 @@ func (h *Hook) SetWatcherStatusInProgress(proj *nexus.RuntimeprojectRuntimeProje
 	return err
 }
 
-func (h *Hook) deleteProject(project *nexus.RuntimeprojectRuntimeProject) {
-	log.Infof("Project: %+v marked for deletion", project.DisplayName())
-
-	organizationName := h.getOrganizationName(project)
-	h.dispatcher.DeleteProject(organizationName, project.DisplayName(), string(project.UID), project)
-
+func (h *Hook) StopWatchingProject(project *nexus.RuntimeprojectRuntimeProject) {
 	ctx, cancel := context.WithTimeout(context.Background(), nexusTimeout)
 	defer cancel()
-
-	// After processing, set the status to IDLE.
-	setStatusErr := h.SetWatcherStatusIdle(project)
-	if setStatusErr != nil {
-		log.Errorf("Failed to update ProjectActiveWatcher object with an error: %v", setStatusErr)
-		return
-	}
 
 	// Stop watching the project as it is marked for deletion.
 	err := project.DeleteActiveWatchers(ctx, appName)
@@ -193,6 +181,13 @@ func (h *Hook) deleteProject(project *nexus.RuntimeprojectRuntimeProject) {
 		return
 	}
 	log.Infof("Active watcher %s deleted for project %s", appName, project.DisplayName())
+}
+
+func (h *Hook) deleteProject(project *nexus.RuntimeprojectRuntimeProject) {
+	log.Infof("Project: %+v marked for deletion", project.DisplayName())
+
+	organizationName := h.getOrganizationName(project)
+	h.dispatcher.DeleteProject(organizationName, project.DisplayName(), string(project.UID), project)
 }
 
 // Callback function to be invoked when Project is added.

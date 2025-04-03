@@ -115,9 +115,15 @@ func (m *Manager) eventWorker(id int) {
 				log.Errorf("Failed to update ProjectActiveWatcher object with an error: %v", setStatusErr)
 				return
 			}
+			if event.EventType == "delete" {
+				// free up the project watcher
+				if event.Project != nil && m.NexusHook != nil {
+					m.NexusHook.StopWatchingProject(event.Project)
+				}
+			}
 		}
 		elapsed := time.Since(start)
-		log.Infof("Done with work on %d for project %s elapsed time %d seconds", id, event.Name, int(elapsed.Seconds()))
+		log.Infof("Done with %s on worker %d for project %s elapsed time %d seconds", event.EventType, id, event.Name, int(elapsed.Seconds()))
 	}
 }
 
