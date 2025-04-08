@@ -40,7 +40,7 @@ When a multi-tenancy Project is created, the Tenant Controller performs these op
 
 When a project is deleted, the Tenant Controller performs these operations:
 
-- in the Orchestrator Harbor, the project-specific `catalog-apps` project is deleted
+- in the Orchestrator Harbor, the project specific `catalog-apps` project is deleted
 - in the Application Catalog, all entities for the project are deleted
 - deletion of cluster templates is handled by the Cluster Template Manager
 - deletion of deployments is handled by the App Deployment Manager
@@ -92,15 +92,15 @@ The values given to the Helm chart drive the behavior. The values are:
   - the internally accessible vault service URL
   - Env var: `VAULT_SERVER`
 - keycloakServer:
-  - default - must be overridden with cluster-specific FQDN
+  - default - must be overridden with cluster specific FQDN
   - the externally accessible Keycloak service URL
   - Env var: `KEYCLOAK_SERVER`
 - harborServerExternal:
-  - default - must be overridden with cluster-specific FQDN
+  - default - must be overridden with cluster specific FQDN
   - the externally accessible Orchestrator Harbor service URL
   - Env var: `REGISTRY_HOST_EXTERNAL`
 - releaseServiceRootUrl:
-  - default - must be overridden with cluster-specific FQDN
+  - default - must be overridden with cluster specific FQDN
   - the externally accessible URL of the Release Service
   - Env var: `RS_ROOT_URL`
 - releaseServiceProxyRootUrl:
