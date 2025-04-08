@@ -10,7 +10,7 @@
 ## Overview
 
 The Application Orchestrator Tenant Controller is a Kubernetes Deployment of a Go server that handles lifecycle
-management for multi-tenancy **Projects** in the **[Application Catalog]**, **[Harbor]**, **[Cluster Template Manager]**
+management for multi-tenancy **Projects** in the **[Application Catalog]**, **[Harbor]**,
 and **[App Deployment Manager]**.
 
 ## Get Started
@@ -31,9 +31,6 @@ When a multi-tenancy Project is created, the Tenant Controller performs these op
 - in the Application Catalog, apps and packages are created for extensions:
   - download from the Release Service the manifest of LPKE deployment packages
   - load them into the Application Catalog one by one
-- in the Cluster Template Manager, cluster templates are created:
-  - download from the Release Service the manifest of LPKE cluster templates
-  - load them into the Cluster Template Manager one by one
 - in the Application Deployment Manager, deployments are created for extension packages:
   - download from the Release Service the manifest of LPKE deployments
   - for each deployment in the list, create a deployment in ADM
@@ -42,13 +39,12 @@ When a project is deleted, the Tenant Controller performs these operations:
 
 - in the Orchestrator Harbor, the project specific `catalog-apps` project is deleted
 - in the Application Catalog, all entities for the project are deleted
-- deletion of cluster templates is handled by the Cluster Template Manager
 - deletion of deployments is handled by the App Deployment Manager
 
 ### Method of Operation
 
 The Tenant Controller listens for Project `create` and `delete` events coming from the multi-tenancy data model and
-dispatches these events to `plugins` that handle the application catalog, Harbor, cluster templates, and extensions
+dispatches these events to `plugins` that handle the application catalog, Harbor, and extensions
 packages. The plugins utilize `southbound` implementations to communicate with the app catalog server, Harbor server,
 CTM server, and ADM server.
 
@@ -182,5 +178,4 @@ Application Orchestration Tenant Controller is licensed under Apache 2.0.
 
 [Application Catalog]: https://github.com/open-edge-platform/app-orch-catalog
 [App Deployment Manager]: https://github.com/open-edge-platform/app-orch-deployment/tree/main/app-deployment-manager
-[Cluster Template Manager]: https://github.com/open-edge-platform/cluster-manager
 [Harbor]: https://goharbor.io
