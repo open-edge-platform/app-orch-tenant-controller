@@ -10,7 +10,7 @@
 ## Overview
 
 The Application Orchestrator Tenant Controller is a Kubernetes Deployment of a Go server that handles lifecycle
-management for multi-tenacy **Projects** in the **[Application Catalog]**, **[Harbor]**, **[Cluster Template Manager]**
+management for multi-tenancy **Projects** in the **[Application Catalog]**, **[Harbor]**, **[Cluster Template Manager]**
 and **[App Deployment Manager]**.
 
 ## Get Started
@@ -19,45 +19,45 @@ and **[App Deployment Manager]**.
 
 When a multi-tenancy Project is created, the Tenant Controller performs these operations:
 
-- in the Orchestrator Harbor
+- in the Orchestrator Harbor:
   - creates the `catalog-apps` Project in the Orchestrator Harbor for the project
   - creates members in this Harbor project
   - creates robot accounts in this Harbor project
-- in the Application Catalog the following registries are created for the project:
+- in the Application Catalog, the following registries are created for the project:
   - `harbor-helm` registry to point at the Orchestrator Harbor for Helm Charts
   - `harbor-docker` registry to point at the Orchestrator Harbor for Images
   - `intel-rs-helm` registry to point at the Release Service OCI Registry for Helm Charts
   - `intel-rs-image` registry to point at the Release Service OCI Registry for Images
-- in the Application Catalog apps and packages are created for extensions:
+- in the Application Catalog, apps and packages are created for extensions:
   - download from the Release Service the manifest of LPKE deployment packages
-  - load them in to the Application Catalog one by one
-- in the Cluster Template Manager cluster templates are created:
+  - load them into the Application Catalog one by one
+- in the Cluster Template Manager, cluster templates are created:
   - download from the Release Service the manifest of LPKE cluster templates
-  - load them in to the Cluster Template Manager one by one
+  - load them into the Cluster Template Manager one by one
 - in the Application Deployment Manager, deployments are created for extension packages:
   - download from the Release Service the manifest of LPKE deployments
   - for each deployment in the list, create a deployment in ADM
 
-When a project is deleted, the tenant controller performs these operations:
+When a project is deleted, the Tenant Controller performs these operations:
 
-- in the Orchestrator Harbor, the project specific `catalog-apps` project is deleted
-- in the Application Catalog, all entities fot the project are deleted
+- in the Orchestrator Harbor, the project-specific `catalog-apps` project is deleted
+- in the Application Catalog, all entities for the project are deleted
 - deletion of cluster templates is handled by the Cluster Template Manager
 - deletion of deployments is handled by the App Deployment Manager
 
 ### Method of Operation
 
-The tenant controller listens for Project `create` and `delete` events coming from the multi-tenancy data model and
+The Tenant Controller listens for Project `create` and `delete` events coming from the multi-tenancy data model and
 dispatches these events to `plugins` that handle the application catalog, Harbor, cluster templates, and extensions
 packages. The plugins utilize `southbound` implementations to communicate with the app catalog server, Harbor server,
 CTM server, and ADM server.
 
 ### Input Variables
 
-The Application Orchestrator Tenant Controller Deployment is loaded as a [Docker Image](../build/Dockerfile) and
-referred to by a [Helm Chart](../deploy/charts/config-provisioner).
+The Application Orchestrator Tenant Controller Deployment is loaded as a [Docker Image](build/Dockerfile) and
+referred to by a [Helm Chart](deploy/charts/app-orch-tenant-controller).
 
-The values given to the helm chart drive the behavior. The values are:
+The values given to the Helm chart drive the behavior. The values are:
 
 - harborServer:
   - default `http://harbor-oci-core.orch-harbor.svc.cluster.local:80`
@@ -81,7 +81,7 @@ The values given to the helm chart drive the behavior. The values are:
   - Env var: `ADM_SERVER`
 - keycloakSecret:
   - default `"platform-keycloak"`
-  - the name of the kubernetes secret that holds keycloak credentials
+  - the name of the Kubernetes secret that holds Keycloak credentials
   - Env var: `KEYCLOAK_SECRET`
 - serviceAccount:
   - default `orch-svc`
@@ -92,20 +92,20 @@ The values given to the helm chart drive the behavior. The values are:
   - the internally accessible vault service URL
   - Env var: `VAULT_SERVER`
 - keycloakServer:
-  - default - must be overridden with cluster specific FQDN
+  - default - must be overridden with cluster-specific FQDN
   - the externally accessible Keycloak service URL
   - Env var: `KEYCLOAK_SERVER`
 - harborServerExternal:
-  - default - must be overridden with cluster specific FQDN
+  - default - must be overridden with cluster-specific FQDN
   - the externally accessible Orchestrator Harbor service URL
   - Env var: `REGISTRY_HOST_EXTERNAL`
 - releaseServiceRootUrl:
-  - default - must be overridden with cluster specific FQDN
-  - The externally accessible URL of the Release Service
+  - default - must be overridden with cluster-specific FQDN
+  - the externally accessible URL of the Release Service
   - Env var: `RS_ROOT_URL`
 - releaseServiceProxyRootUrl:
   - default `oci://rs-proxy.rs-proxy.svc.cluster.local:8443`
-  - The internally accessible URL of the Release Service Proxy
+  - the internally accessible URL of the Release Service Proxy
   - Env var: `RS_PROXY_ROOT_URL`
 - manifestPath:
   - default `"/edge-orch/en/files/manifest"`
@@ -117,18 +117,18 @@ The values given to the helm chart drive the behavior. The values are:
   - Env var: `MANIFEST_TAG`
 - namespace:
   - default `orch-system`
-  - The namespace where the Application Orchestrator Tenant Controller resides
+  - the namespace where the Application Orchestrator Tenant Controller resides
 - keycloakNamespace:
   - default `orch-platform`
-  - The namespace where the Keycloak service resides
+  - the namespace where the Keycloak service resides
   - Env var: `KEYCLOAK_NAMESPACE`
 - harborNamespace:
   - default `orch-harbor`
-  - The namespace where the Harbor service resides
+  - the namespace where the Harbor service resides
   - Env var: `HARBOR_NAMESPACE`
 - platformNamespace:
   - default `orch-platform`
-  - The namespace where the Platform services reside
+  - the namespace where the Platform services reside
 - numberWorkerThreads:
   - default `2`
   - defines the number of simultaneous workers that are available to process events
@@ -144,13 +144,13 @@ The values given to the helm chart drive the behavior. The values are:
 
 ## Develop
 
-To develop a new plugin add to the package `internal/plugins`. The plugin must implement the `Plugin` interface
+To develop a new plugin, add to the package `internal/plugins`. The plugin must implement the `Plugin` interface
 in [plugin.go](internal/plugins/plugin.go) with the methods:
 
-- Name() string
-- Initialize(context.Context) error
-- CreateEvent(context.Context, Event, PluginData) error
-- DeleteEvent(context.Context, Event, PluginData) error
+- `Name() string`
+- `Initialize(context.Context) error`
+- `CreateEvent(context.Context, Event, PluginData) error`
+- `DeleteEvent(context.Context, Event, PluginData) error`
 
 Each plugin must have its own set of unit tests in the `internal/plugins` package.
 
@@ -160,7 +160,7 @@ in [manager.go](internal/manager/manager.go).
 ## Contribute
 
 We welcome contributions from the community! To contribute, please open a pull request to have your changes reviewed
-and merged into the main. We encourage you to add appropriate unit tests and e2e tests if your contribution introduces
+and merged into the `main` branch. We encourage you to add appropriate unit tests and e2e tests if your contribution introduces
 a new feature. See the [CONTRIBUTING.md](CONTRIBUTING.md) file for more information.
 
 Additionally, ensure the following commands are successful:
