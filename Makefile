@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: (C) 2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+SHELL	:= bash -eu -o pipefail
+
 PKG               := github.com/open-edge-platform/app-orch-tenant-controller
 
 # GO variables
@@ -156,6 +158,14 @@ docker-push: docker-build ##Push the docker image to the target registry
 	docker tag $(PUBLISH_NAME):$(VERSION) $(DOCKER_TAG)
 	docker push $(DOCKER_TAG)
 
+docker-list: ## Print name of docker container image
+	@echo "images:"
+	@echo "  $(PUBLISH_NAME):"
+	@echo "    name: '$(DOCKER_TAG)'"
+	@echo "    version: '$(VERSION)'"
+	@echo "    gitTagPrefix: 'v'"
+	@echo "    buildTarget: 'docker-build'"
+
 .PHONY: chart-clean
 chart-clean: ## Cleans the build directory of the helm chart
 	rm -rf ${CHART_BUILD_DIR}/*.tgz
@@ -195,6 +205,13 @@ helm-push: helm-build ## Push helm charts.
 	@# Help: Pushes the helm chart
 	aws ecr create-repository --region us-west-2 --repository-name $(PUBLISH_REPOSITORY)/$(PUBLISH_SUB_PROJ)/$(PUBLISH_CHART_PREFIX)/$(PUBLISH_NAME) || true
 	helm push ${CHART_BUILD_DIR}${PUBLISH_NAME}-[0-9]*.tgz oci://$(PUBLISH_REGISTRY)/$(PUBLISH_REPOSITORY)/$(PUBLISH_SUB_PROJ)/$(PUBLISH_CHART_PREFIX)
+
+helm-list: ## List helm charts, tag format, and versions in YAML format
+	@echo "charts:" ;\
+  echo "  $(PUBLISH_NAME):" ;\
+  echo -n "    "; grep "^version" "${CHART_PATH}/Chart.yaml"  ;\
+  echo "    gitTagPrefix: 'v'" ;\
+  echo "    outDir: '${CHART_BUILD_DIR}'" ;\
 
 .PHONY: kind
 kind: ## Build the Docker image and load it into kind
