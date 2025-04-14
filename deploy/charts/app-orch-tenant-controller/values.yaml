@@ -72,7 +72,7 @@ configProvisioner:
   numberWorkerThreads: "2"
 
   # settings for error retry. Times are in seconds
-  initialSleepInterval: "120"
+  initialSleepInterval: "15"
   maxWaitTime: "600"
 
 annotations: {}

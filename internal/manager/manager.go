@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	"math"
 	"os"
 	"time"
 )
@@ -130,7 +129,7 @@ func (m *Manager) eventWorker(id int) {
 func (m *Manager) handleProjectEvent(event plugins.Event) error {
 	startTime := time.Now()
 	maxTimeout := m.Config.InitialSleepInterval * time.Duration(m.Config.NumberWorkerThreads)
-	sleepInterval := maxTimeout
+	sleepInterval := m.Config.InitialSleepInterval
 
 	var err error
 
@@ -139,7 +138,9 @@ func (m *Manager) handleProjectEvent(event plugins.Event) error {
 
 		// dispatch the event
 		err = plugins.Dispatch(ctx, event, m.NexusHook)
+
 		cancel()
+
 		if err == nil {
 			return err
 		}
@@ -151,14 +152,12 @@ func (m *Manager) handleProjectEvent(event plugins.Event) error {
 			break
 		}
 
-		// Sleep before retrying with exponential backoff
 		err = m.NexusHook.SetWatcherStatusInProgress(event.Project, fmt.Sprintf("Retry backoff for project %s. Last error was %s", event.Name, err.Error()))
 		if err != nil {
 			return err
 		}
 		log.Infof("Retrying in %d seconds", int(sleepInterval.Seconds()))
 		time.Sleep(sleepInterval)
-		sleepInterval = time.Duration(math.Min(float64(sleepInterval), float64(m.Config.MaxWaitTime-time.Since(startTime))))
 	}
 	return err
 }
