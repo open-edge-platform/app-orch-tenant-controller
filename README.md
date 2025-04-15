@@ -174,7 +174,7 @@ For support, start with [Troubleshooting](https://github.com/open-edge-platform)
 
 ## License
 
-Application Orchestration Tenant Controller is licensed under Apache 2.0.
+Application Orchestration Tenant Controller is licensed under [Apache 2.0 License](LICENSES/Apache-2.0.txt).
 
 [Application Catalog]: https://github.com/open-edge-platform/app-orch-catalog
 [App Deployment Manager]: https://github.com/open-edge-platform/app-orch-deployment/tree/main/app-deployment-manager
