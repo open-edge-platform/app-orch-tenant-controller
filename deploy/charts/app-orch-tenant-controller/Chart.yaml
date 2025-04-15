@@ -5,8 +5,8 @@
 apiVersion: v2
 description: Tenant Controller
 name: app-orch-tenant-controller
-version: 0.2.12
+version: 0.2.13
 annotations:
   revision: ""
   created: ""
-appVersion: "0.2.12"
+appVersion: "0.2.13"

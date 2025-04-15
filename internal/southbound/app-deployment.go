@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 type AdmClient interface {
@@ -90,6 +91,11 @@ func (a *AppDeployment) CreateDeployment(ctx context.Context,
 		return err
 	}
 	resp, err := a.admClient.CreateDeployment(lctx, deployment)
+	if e, ok := status.FromError(err); ok {
+		if e.Code() == codes.AlreadyExists {
+			return nil
+		}
+	}
 	if err != nil {
 		return err
 	}
