@@ -128,7 +128,7 @@ func (m *Manager) eventWorker(id int) {
 
 func (m *Manager) handleProjectEvent(event plugins.Event) error {
 	startTime := time.Now()
-	maxTimeout := m.Config.InitialSleepInterval * time.Duration(m.Config.NumberWorkerThreads)
+	maxTimeout := m.Config.InitialSleepInterval * 10 * time.Second
 	sleepInterval := m.Config.InitialSleepInterval
 
 	var err error
