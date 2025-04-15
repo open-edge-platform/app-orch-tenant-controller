@@ -156,8 +156,8 @@ in [manager.go](internal/manager/manager.go).
 ## Contribute
 
 We welcome contributions from the community! To contribute, please open a pull request to have your changes reviewed
-and merged into the `main` branch. We encourage you to add appropriate unit tests and e2e tests if your contribution introduces
-a new feature. See the [CONTRIBUTING.md](CONTRIBUTING.md) file for more information.
+and merged into the `main` branch. We encourage you to add appropriate unit tests and end-to-end tests if
+your contribution introduces a new feature. See [Contributor Guide] for information on how to contribute to the project.
 
 Additionally, ensure the following commands are successful:
 
@@ -179,3 +179,4 @@ Application Orchestration Tenant Controller is licensed under Apache 2.0.
 [Application Catalog]: https://github.com/open-edge-platform/app-orch-catalog
 [App Deployment Manager]: https://github.com/open-edge-platform/app-orch-deployment/tree/main/app-deployment-manager
 [Harbor]: https://goharbor.io
+[Contributor Guide]: https://docs.openedgeplatform.intel.com/edge-manage-docs/main/developer_guide/contributor_guide/index.html
