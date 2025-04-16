@@ -180,6 +180,6 @@ Application Orchestration Tenant Controller is licensed under [Apache 2.0 Licens
 [App Deployment Manager]: https://github.com/open-edge-platform/app-orch-deployment/tree/main/app-deployment-manager
 [Harbor]: https://goharbor.io
 [Contributor Guide]: https://docs.openedgeplatform.intel.com/edge-manage-docs/main/developer_guide/contributor_guide/index.html
-[Troubleshooting]: https://github.com/open-edge-platform/orch-docs
+[Troubleshooting]: https://docs.openedgeplatform.intel.com/edge-manage-docs/main/developer_guide/troubleshooting/index.html
 [Contact us]: https://github.com/open-edge-platform
 [Edge Orchestrator Community]: https://github.com/open-edge-platform
