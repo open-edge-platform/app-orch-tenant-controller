@@ -7,7 +7,6 @@ module github.com/open-edge-platform/app-orch-tenant-controller
 go 1.23.2
 
 require (
-	github.com/labstack/gommon v0.4.2
 	github.com/open-edge-platform/app-orch-catalog v0.11.24
 	github.com/open-edge-platform/app-orch-deployment/app-deployment-manager/api/nbi/v2 v2.3.21
 	github.com/open-edge-platform/orch-library/go v0.5.30
@@ -105,6 +104,7 @@ require (
 	github.com/klauspost/compress v1.17.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/labstack/echo/v4 v4.11.4 // indirect
+	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mailgun/raymond/v2 v2.0.48 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
