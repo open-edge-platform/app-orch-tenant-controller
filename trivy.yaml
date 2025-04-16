@@ -3,4 +3,4 @@
 ---
 scan:
   skip-files:
-    - deploy/charts/config-provisioner/templates/roles.yaml
+    - deploy/charts/app-orch-tenant-controller/templates/roles.yaml
