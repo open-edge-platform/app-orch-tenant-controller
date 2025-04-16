@@ -156,7 +156,7 @@ func (c *AppCatalog) ListRegistries(ctx context.Context) error {
 }
 
 func (c *AppCatalog) UploadYAMLFile(ctx context.Context, projectUUID string, fileName string, artifact []byte, lastFile bool) error {
-	log.Infof("Uploading file %s to %s last file %t", fileName, projectUUID, lastFile)
+	log.Debugf("Uploading file %s to %s last file %t", fileName, projectUUID, lastFile)
 	ctx, err := getCtxForProjectID(ctx, projectUUID, c.config)
 	if err != nil {
 		return err
