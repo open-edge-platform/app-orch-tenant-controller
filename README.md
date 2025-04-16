@@ -182,4 +182,4 @@ Application Orchestration Tenant Controller is licensed under [Apache 2.0 Licens
 [Contributor Guide]: https://docs.openedgeplatform.intel.com/edge-manage-docs/main/developer_guide/contributor_guide/index.html
 [Troubleshooting]: https://docs.openedgeplatform.intel.com/edge-manage-docs/main/developer_guide/troubleshooting/index.html
 [Contact us]: https://github.com/open-edge-platform
-[Edge Orchestrator Community]: https://github.com/open-edge-platform
+[Edge Orchestrator Community]: https://docs.openedgeplatform.intel.com/edge-manage-docs/main/index.html
