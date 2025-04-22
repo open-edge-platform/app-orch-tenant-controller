@@ -5,7 +5,7 @@ package nexus
 
 import (
 	"context"
-	"github.com/labstack/gommon/log"
+	"github.com/open-edge-platform/orch-library/go/dazl"
 	projectActiveWatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectactivewatcher.edge-orchestrator.intel.com/v1"
 	projectwatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectwatcher.edge-orchestrator.intel.com/v1"
 	nexus "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/nexus-client"
@@ -14,16 +14,22 @@ import (
 	"time"
 )
 
+var log = dazl.GetPackageLogger()
+
 const (
 	appName = "config-provisioner"
 
 	// Allow only certain time for interacting with Nexus server
 	nexusTimeout = 5 * time.Second
+
+	// manifest tag annotation key
+	ManifestTagAnnotationKey = "app-orch-tenant-controller/manifest-tag"
 )
 
 type ProjectManager interface {
 	CreateProject(orgName string, projectName string, projectUUID string, project *nexus.RuntimeprojectRuntimeProject)
 	DeleteProject(orgName string, projectName string, projectUUID string, project *nexus.RuntimeprojectRuntimeProject)
+	ManifestTag() string
 }
 
 type Hook struct {
@@ -75,6 +81,7 @@ func (h *Hook) Subscribe() error {
 		return err
 	}
 	log.Info("Nexus hook successfully subscribed")
+
 	return nil
 }
 
@@ -166,6 +173,22 @@ func (h *Hook) SetWatcherStatusInProgress(proj *nexus.RuntimeprojectRuntimeProje
 	return err
 }
 
+func (h *Hook) UpdateProjectManifestTag(proj *nexus.RuntimeprojectRuntimeProject) error {
+	log.Infof("Setting watcher manifest tag for project %s to %s", proj.DisplayName(), h.dispatcher.ManifestTag())
+	watcherObj, err := proj.GetActiveWatchers(context.Background(), appName)
+	if err != nil {
+		return err
+	}
+	if watcherObj != nil {
+		log.Debug("Setting watcher annotations")
+		annotations := make(map[string]string)
+		annotations[ManifestTagAnnotationKey] = h.dispatcher.ManifestTag()
+		watcherObj.SetAnnotations(annotations)
+		return watcherObj.Update(context.Background())
+	}
+	return err
+}
+
 func (h *Hook) StopWatchingProject(project *nexus.RuntimeprojectRuntimeProject) {
 	ctx, cancel := context.WithTimeout(context.Background(), nexusTimeout)
 	defer cancel()
@@ -192,7 +215,7 @@ func (h *Hook) deleteProject(project *nexus.RuntimeprojectRuntimeProject) {
 
 // Callback function to be invoked when Project is added.
 func (h *Hook) projectCreated(project *nexus.RuntimeprojectRuntimeProject) {
-	log.Infof("Runtime Project: %+v created", *project)
+	log.Infof("Runtime Project: %s created", project.DisplayName())
 
 	if project.Spec.Deleted {
 		log.Info("Created event for deleted project, dispatching delete event")
@@ -214,23 +237,41 @@ func (h *Hook) projectCreated(project *nexus.RuntimeprojectRuntimeProject) {
 			TimeStamp:       h.safeUnixTime(),
 		},
 	})
-	if watcherObj.Spec.StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.Spec.Message == "Created" {
-		// This is a rerun of an event we already processed - no more processing required
-		log.Infof("Watch %s for project %s already provisioned", watcherObj.DisplayName(), project.DisplayName())
+
+	if err != nil {
+		log.Errorf("Failed to create ProjectActiveWatcher object with an error: %v", err)
 		return
 	}
 
+	var action string
+
+	if watcherObj.Spec.StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.Spec.Message == "Created" {
+		// This is a rerun of an event we already processed - check for update
+		log.Infof("Watch %s for project %s already provisioned", watcherObj.DisplayName(), project.DisplayName())
+		log.Debugf("existing watcher annotations are: %+v", watcherObj.Annotations)
+		if watcherObj.Annotations[ManifestTagAnnotationKey] == h.dispatcher.ManifestTag() {
+			// Manifest tag is correct
+			log.Infof("Manifest tag is correct, no need to update")
+			return
+		}
+		log.Infof("Manifest tag is not correct, updating. Have %s, want %s", watcherObj.Annotations[ManifestTagAnnotationKey], h.dispatcher.ManifestTag())
+		action = "update"
+	} else {
+		action = "created"
+	}
+
 	if nexus.IsAlreadyExists(err) {
-		log.Warnf("Watch %s already exists for project %s", watcherObj.DisplayName(), project.DisplayName())
+		log.Infof("Watch %s already exists for project %s", watcherObj.DisplayName(), project.DisplayName())
 	} else if err != nil {
 		log.Errorf("Error %+v while creating watch %s for project %s", err, appName, project.DisplayName())
+		return
 	}
 
 	// handle the creation of the project
 	organizationName := h.getOrganizationName(project)
 	h.dispatcher.CreateProject(organizationName, project.DisplayName(), string(project.UID), project)
 
-	log.Infof("Active watcher %s created for Project %s", watcherObj.DisplayName(), project.DisplayName())
+	log.Infof("Active watcher %s %s for Project %s", watcherObj.DisplayName(), action, project.DisplayName())
 }
 
 func (h *Hook) getOrganizationName(project *nexus.RuntimeprojectRuntimeProject) string {
