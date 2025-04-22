@@ -183,15 +183,14 @@ func (h *Hook) SetWatcherStatusInProgress(proj NexusProjectInterface, message st
 	return err
 }
 
-
-func (h *Hook) UpdateProjectManifestTag(ctx context.Context, proj *nexus.RuntimeprojectRuntimeProject) error {
+func (h *Hook) UpdateProjectManifestTag(proj *nexus.RuntimeprojectRuntimeProject) error {
 	log.Infof("Setting watcher manifest tag for project %s to %s", proj.DisplayName(), h.dispatcher.ManifestTag())
 	watcherObj, err := proj.GetActiveWatchers(context.Background(), appName)
 	if err != nil {
 		return err
 	}
 	if watcherObj != nil {
-		log.Infof("Setting watcher annotations")
+		log.Debug("Setting watcher annotations")
 		annotations := make(map[string]string)
 		annotations[ManifestTagAnnotationKey] = h.dispatcher.ManifestTag()
 		watcherObj.SetAnnotations(annotations)
