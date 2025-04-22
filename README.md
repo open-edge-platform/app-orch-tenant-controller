@@ -185,7 +185,6 @@ make test
 
 Linter checks are run for each PR and linter check can be run locally as follows:
 
-
 ```bash
 make lint
 ```
@@ -201,12 +200,12 @@ If developer has done any helm chart changes then helm charts can be build as fo
 ```bash
 make helm-build
 ```
+
 ## Contribute
 
 We welcome contributions from the community! To contribute, please open a pull request to have your changes reviewed
 and merged into the `main` branch. We encourage you to add appropriate unit tests and end-to-end tests if
 your contribution introduces a new feature. See [Contributor Guide] for information on how to contribute to the project.
-
 
 ## Community and Support
 
