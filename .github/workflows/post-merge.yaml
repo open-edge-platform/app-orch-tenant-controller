@@ -12,25 +12,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  actions: read
-  attestations: read
-  checks: read
-  deployments: read
-  discussions: read
-  issues: read
-  models: read
-  packages: read
-  pages: read
-  pull-requests: read
-  repository-projects: read
-  statuses: read
-  security-events: write
+  contents: write
+  packages: write
   id-token: write
 
 jobs:
   post-merge-pipeline:
     uses: open-edge-platform/orch-ci/.github/workflows/post-merge.yml@4c94cdd01e58beab5f822f1eeb0439a523018a55 # v0.1.5
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     with:
       run_version_check: true
       run_dep_version_check: true

@@ -13,11 +13,13 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  pull-requests: write
 
 jobs:
   stale-auto-close:
     runs-on: ${{ github.repository_owner == 'intel' && 'intel-ubuntu-latest' || 'ubuntu-latest' }}
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/stale@9c1b1c6e115ca2af09755448e0dbba24e5061cc8 # v5.1.1
         with:
