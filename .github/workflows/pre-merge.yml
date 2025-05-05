@@ -45,12 +45,12 @@ jobs:
     needs: [pre-merge-pipeline]
     steps:
       - name: Final Status Check
+        env:
+          PRE_MERGE_PIPELINE_RESULT: ${{ needs.pre-merge-pipeline.result }}
         run: |
-          pre_merge_pipeline_result="${{ needs.pre-merge-pipeline.result }}"
-          
-          echo "Pre-merge pipeline result: $pre_merge_pipeline_result"
+          echo "Pre-merge pipeline result: $PRE_MERGE_PIPELINE_RESULT"
 
-          if [ "$pre_merge_pipeline_result" == "success" ] || [ "$pre_merge_pipeline_result" == "skipped" ]; then
+          if [ "$PRE_MERGE_PIPELINE_RESULT" == "success" ] || [ "$PRE_MERGE_PIPELINE_RESULT" == "skipped" ]; then
             echo "Pre-merge check passed successfully."
           else
             echo "Pre-merge checks failed. PR can't get merged"
