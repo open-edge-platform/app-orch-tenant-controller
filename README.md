@@ -8,7 +8,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/open-edge-platform/app-orch-tenant-controller/badge)](https://scorecard.dev/viewer/?uri=github.com/open-edge-platform/app-orch-tenant-controller)
 
-
 ## Overview
 
 The Application Orchestrator Tenant Controller is a Kubernetes Deployment of a Go server that handles lifecycle
