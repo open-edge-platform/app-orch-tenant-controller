@@ -1,7 +1,4 @@
 # SPDX-FileCopyrightText: (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-rules:
-  secrets-inherit:
-    ignore:
-      - ".github/workflows/post-merge.yaml:34"
+rules: {}
