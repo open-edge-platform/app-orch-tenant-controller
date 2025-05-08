@@ -78,7 +78,6 @@ func (a *AppDeployment) CreateDeployment(ctx context.Context,
 			AppName:        dpName,
 			AppVersion:     version,
 			ProfileName:    profileName,
-			PublisherName:  projectID,
 			DeploymentType: "auto-scaling",
 			AllAppTargetClusters: &adm.TargetClusters{
 				Labels: labels,
