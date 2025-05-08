@@ -6,8 +6,6 @@ version: 2
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
-    registries:
-      - github
     schedule:
       interval: daily
     open-pull-requests-limit: 3
