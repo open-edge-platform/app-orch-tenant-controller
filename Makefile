@@ -20,6 +20,7 @@ VERSION_DEV_SUFFIX   := ${GIT_HASH_SHORT}
 PUBLISH_NAME            ?= app-orch-tenant-controller
 PUBLISH_REPOSITORY      ?= edge-orch
 PUBLISH_REGISTRY        ?= 080137407410.dkr.ecr.us-west-2.amazonaws.com
+DOCKER_REGISTRY         ?= registry-rs.edgeorchestration.intel.com
 PUBLISH_SUB_PROJ        ?= app
 PUBLISH_CHART_PREFIX    ?= charts
 
@@ -35,6 +36,7 @@ endif
 ifeq ($(findstring -dev,$(VERSION)), -dev)
 	VERSION := $(VERSION)-$(VERSION_DEV_SUFFIX)
 endif
+DOCKER_CODER            := $(DOCKER_REGISTRY)/$(PUBLISH_REPOSITORY)/$(PUBLISH_SUB_PROJ)/$(PUBLISH_NAME):$(VERSION)
 
 CONFIG_PROVISIONER_VERSION    ?= ${VERSION}
 DOCKER_BUILD_ARGS += -t $(PUBLISH_NAME):$(VERSION)
@@ -52,7 +54,7 @@ CODE_GENERATOR_TAG ?= v0.30.0
 
 MGMT_NAME        ?= kind
 MGMT_CLUSTER    ?= kind-${MGMT_NAME}
-CODER_DIR ?= ~/orch-deploy
+CODER_DIR ?= ~/edge-manageability-framework
 CONFIG_PROVISIONER_HELM_PKG ?= $(MAKEDIR)/${CHART_BUILD_DIR}${PUBLISH_NAME}-${CHART_VERSION}.tgz
 
 GOPATH := $(shell go env GOPATH)
@@ -221,19 +223,21 @@ kind:
 
 
 .PHONY: coder-rebuild
+
 coder-rebuild: ## Rebuild the TC from source and redeploy
 	make docker-image
-	kind load docker-image -n ${MGMT_NAME} $(DOCKER_IMAGE_NAME):$(VERSION)
+	docker tag $(PUBLISH_NAME):$(VERSION) $(DOCKER_CODER)
+	kind load docker-image -n ${MGMT_NAME} $(DOCKER_CODER)
 	kubectl config use-context ${MGMT_CLUSTER}
-	kubectl -n ${CHART_NAMESPACE} delete pod -l app=config-provisioner
+	kubectl -n ${CHART_NAMESPACE} delete pod -l app=app-orch-tenant-controller
 
 .PHONY: coder-redeploy
-coder-redeploy: kind chart ## Installs the helm chart in the kind cluster
+coder-redeploy: chart ## Installs the helm chart in the kind cluster
 	kubectl config use-context ${MGMT_CLUSTER}
 	kubectl patch application -n dev root-app --type=merge -p '{"spec":{"syncPolicy":{"automated":{"selfHeal":false}}}}'
-	kubectl delete application -n dev config-provisioner --ignore-not-found=true
-	helm upgrade --install -n vcm-system config-provisioner -f $(CODER_DIR)/argocd/applications/configs/config-provisioner.yaml  $(CONFIG_PROVISIONER_HELM_PKG)
-	helm -n vcm-system ls
+	kubectl delete application -n dev app-orch-tenant-controller --ignore-not-found=true
+	helm upgrade --install -n ${CHART_NAMESPACE} app-orch-tenant-controller -f $(CODER_DIR)/argocd/applications/configs/app-orch-tenant-controller.yaml  $(CONFIG_PROVISIONER_HELM_PKG)
+	helm -n ${CHART_NAMESPACE} ls
 
 
 .PHONY: clean
