@@ -32,4 +32,4 @@ jobs:
       run_artifact: false
       project_folder: ""
     secrets:
-      inherit
+      inherit # zizmor: ignore[secrets-inherit]
