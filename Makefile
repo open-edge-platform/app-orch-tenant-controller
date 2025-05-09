@@ -106,8 +106,8 @@ go-test: ## Runs test stage
 	$(GOCMD) test -race -gcflags=-l `go list  $(PKG)/pkg/... | grep -v "/mocks" | grep -v "/test/"`
 	@echo "---END MAKEFILE TEST---"
 
-FUZZ_FUNCS ?= FuzzCreateRegistry FuzzCreateArtifact FuzzCreateDeploymentPackage
-FUZZ_FUNC_PATH := ./internal/northbound
+FUZZ_FUNCS ?= FuzzCreateProject FuzzDeleteProject
+FUZZ_FUNC_PATH := ./internal/nexus
 
 .PHONY: go-fuzz
 go-fuzz: ## GO fuzz tests

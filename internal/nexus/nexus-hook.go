@@ -16,64 +16,11 @@ import (
 )
 
 const (
-	appName = "config-provisioner"
+       appName = "config-provisioner"
 
-	// Allow only certain time for interacting with Nexus server
-	nexusTimeout = 5 * time.Second
+       // Allow only certain time for interacting with Nexus server
+       nexusTimeout = 5 * time.Second
 )
-
-// NexusProject is a wrapper around the Nexus RuntimeProject Client.
-// It provides methods to interact with the Nexus API and manage project lifecycle events.
-// It adds additional methods such as IsDeleted().
-// It allows us to easily mock the Nexus Client for testing purposes.
-
-type NexusProject nexus.RuntimeprojectRuntimeProject
-
-func (p *NexusProject) GetActiveWatchers(ctx context.Context, name string) (*nexus.ProjectactivewatcherProjectActiveWatcher, error) {
-	return (*nexus.RuntimeprojectRuntimeProject)(p).GetActiveWatchers(ctx, name)
-}
-
-func (p *NexusProject) AddActiveWatchers(ctx context.Context, watcher *projectActiveWatcherv1.ProjectActiveWatcher) (*nexus.ProjectactivewatcherProjectActiveWatcher, error) {
-	return (*nexus.RuntimeprojectRuntimeProject)(p).AddActiveWatchers(ctx, watcher)
-}
-
-func (p *NexusProject) DeleteActiveWatchers(ctx context.Context, name string) error {
-	return (*nexus.RuntimeprojectRuntimeProject)(p).DeleteActiveWatchers(ctx, name)
-}
-
-func (p *NexusProject) GetParent(ctx context.Context) (NexusFolderInterface, error) {
-	return (*nexus.RuntimeprojectRuntimeProject)(p).GetParent(ctx)
-}
-
-func (p *NexusProject) DisplayName() string {
-	return (*nexus.RuntimeprojectRuntimeProject)(p).DisplayName()
-}
-
-func (p *NexusProject) GetUID() string {
-	return string((*nexus.RuntimeprojectRuntimeProject)(p).UID)
-}
-
-func (p *NexusProject) IsDeleted() bool {
-	return p.Spec.Deleted
-}
-
-type NexusOrganizationInterface interface {
-	DisplayName() string
-}
-
-type NexusFolderInterface interface {
-	GetParent(ctx context.Context) (NexusOrganizationInterface, error)
-}
-
-type NexusProjectInterface interface {
-	GetActiveWatchers(ctx context.Context, name string) (*nexus.ProjectactivewatcherProjectActiveWatcher, error)
-	AddActiveWatchers(ctx context.Context, watcher *projectActiveWatcherv1.ProjectActiveWatcher) (*nexus.ProjectactivewatcherProjectActiveWatcher, error)
-	DeleteActiveWatchers(ctx context.Context, name string) error
-	GetParent(ctx context.Context) (NexusFolderInterface, error)
-	DisplayName() string
-	GetUID() string
-	IsDeleted() bool
-}
 
 type ProjectManager interface {
 	CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface	)

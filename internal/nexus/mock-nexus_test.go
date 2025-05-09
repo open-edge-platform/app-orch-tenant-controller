@@ -12,11 +12,26 @@ import (
 	//"k8s.io/client-go/rest"
 )
 
+type MockNexusOrganization struct {
+}
+
+func (o *MockNexusOrganization) DisplayName() string {
+	return "MockNexusOrganization"
+}
+
+type MockNexusFolder struct {
+	parent *MockNexusOrganization
+}
+
+func (f *MockNexusFolder) GetParent(ctx context.Context) (NexusOrganizationInterface, error) {
+	return f.parent, nil
+}
+
 type MockNexusProject struct {
 	isDeleted bool
 	displayName string
 	uid string
-	parent *nexus.RuntimefolderRuntimeFolder
+	parent *MockNexusFolder
 	activeWatchers map[string]*nexus.ProjectactivewatcherProjectActiveWatcher
 }
 
@@ -35,7 +50,7 @@ func (p *MockNexusProject) DeleteActiveWatchers(ctx context.Context, name string
 	return nil
 }
 
-func (p *MockNexusProject) GetParent(ctx context.Context) (*nexus.RuntimefolderRuntimeFolder, error) {
+func (p *MockNexusProject) GetParent(ctx context.Context) (NexusFolderInterface, error) {
 	return p.parent, nil
 }
 
@@ -52,12 +67,12 @@ func (p *MockNexusProject) IsDeleted() bool {
 	return p.isDeleted
 }
 
-func NewMockNexusProject(name string, uid string, parent *nexus.RuntimefolderRuntimeFolder) *MockNexusProject {
+func NewMockNexusProject(name string, uid string) *MockNexusProject {
 	return &MockNexusProject{
 		isDeleted: false,
 		displayName: name,
 		uid: uid,
-		parent: parent,
+		parent: &MockNexusFolder{},
 		activeWatchers: make(map[string]*nexus.ProjectactivewatcherProjectActiveWatcher),
 	}
 }
