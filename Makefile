@@ -115,6 +115,9 @@ go-fuzz: ## GO fuzz tests
 		$(GOCMD) test $(FUZZ_FUNC_PATH) -fuzz $$func -fuzztime=${FUZZ_SECONDS}s -v; \
 	done
 
+go-format: ## Help: Formats go source files
+	@go fmt $(shell sh -c "go list ./...")
+
 .PHONY: go-cover-dependency
 go-cover-dependency: ## installs the gocover tool
 	go tool cover -V || go install golang.org/x/tools/cmd/cover@${GOLANG_COVER_VERSION}
