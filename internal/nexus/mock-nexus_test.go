@@ -6,11 +6,10 @@ package nexus
 import (
 	"context"
 	projectActiveWatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectactivewatcher.edge-orchestrator.intel.com/v1"
-	//projectwatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectwatcher.edge-orchestrator.intel.com/v1"
 	nexus "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/nexus-client"
-	//metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	//"k8s.io/client-go/rest"
 )
+
+// This module contains mocks for the Nexus client. It maintains an in-memory list of watchers.
 
 type MockNexusOrganization struct {
 }
@@ -42,7 +41,6 @@ func (p *MockNexusProject) GetActiveWatchers(ctx context.Context, name string) (
 func (p *MockNexusProject) AddActiveWatchers(ctx context.Context, watcher *projectActiveWatcherv1.ProjectActiveWatcher) (*nexus.ProjectactivewatcherProjectActiveWatcher, error) {
 	p.activeWatchers[watcher.Name] = &nexus.ProjectactivewatcherProjectActiveWatcher{ProjectActiveWatcher: watcher}
 
-	//&nexus.ProjectactivewatcherProjectActiveWatcherSpec{StatusIndicator: projectActiveWatcherv1.StatusIndicationIdle, Message: "msg"}}
 	return p.activeWatchers[watcher.Name], nil
 }
 
