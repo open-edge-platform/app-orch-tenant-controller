@@ -9,6 +9,7 @@ import (
 	projectActiveWatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectactivewatcher.edge-orchestrator.intel.com/v1"
 	projectwatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectwatcher.edge-orchestrator.intel.com/v1"
 	nexus "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/nexus-client"
+	//nexustypes "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/project.edge-orchestrator.intel.com/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"time"
@@ -21,9 +22,62 @@ const (
 	nexusTimeout = 5 * time.Second
 )
 
+// NexusProject is a wrapper around the Nexus RuntimeProject Client.
+// It provides methods to interact with the Nexus API and manage project lifecycle events.
+// It adds additional methods such as IsDeleted().
+// It allows us to easily mock the Nexus Client for testing purposes.
+
+type NexusProject nexus.RuntimeprojectRuntimeProject
+
+func (p *NexusProject) GetActiveWatchers(ctx context.Context, name string) (*nexus.ProjectactivewatcherProjectActiveWatcher, error) {
+	return (*nexus.RuntimeprojectRuntimeProject)(p).GetActiveWatchers(ctx, name)
+}
+
+func (p *NexusProject) AddActiveWatchers(ctx context.Context, watcher *projectActiveWatcherv1.ProjectActiveWatcher) (*nexus.ProjectactivewatcherProjectActiveWatcher, error) {
+	return (*nexus.RuntimeprojectRuntimeProject)(p).AddActiveWatchers(ctx, watcher)
+}
+
+func (p *NexusProject) DeleteActiveWatchers(ctx context.Context, name string) error {
+	return (*nexus.RuntimeprojectRuntimeProject)(p).DeleteActiveWatchers(ctx, name)
+}
+
+func (p *NexusProject) GetParent(ctx context.Context) (NexusFolderInterface, error) {
+	return (*nexus.RuntimeprojectRuntimeProject)(p).GetParent(ctx)
+}
+
+func (p *NexusProject) DisplayName() string {
+	return (*nexus.RuntimeprojectRuntimeProject)(p).DisplayName()
+}
+
+func (p *NexusProject) GetUID() string {
+	return string((*nexus.RuntimeprojectRuntimeProject)(p).UID)
+}
+
+func (p *NexusProject) IsDeleted() bool {
+	return p.Spec.Deleted
+}
+
+type NexusOrganizationInterface interface {
+	DisplayName() string
+}
+
+type NexusFolderInterface interface {
+	GetParent(ctx context.Context) (NexusOrganizationInterface, error)
+}
+
+type NexusProjectInterface interface {
+	GetActiveWatchers(ctx context.Context, name string) (*nexus.ProjectactivewatcherProjectActiveWatcher, error)
+	AddActiveWatchers(ctx context.Context, watcher *projectActiveWatcherv1.ProjectActiveWatcher) (*nexus.ProjectactivewatcherProjectActiveWatcher, error)
+	DeleteActiveWatchers(ctx context.Context, name string) error
+	GetParent(ctx context.Context) (NexusFolderInterface, error)
+	DisplayName() string
+	GetUID() string
+	IsDeleted() bool
+}
+
 type ProjectManager interface {
-	CreateProject(orgName string, projectName string, projectUUID string, project *nexus.RuntimeprojectRuntimeProject)
-	DeleteProject(orgName string, projectName string, projectUUID string, project *nexus.RuntimeprojectRuntimeProject)
+	CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface	)
+	DeleteProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface	)
 }
 
 type Hook struct {
@@ -65,12 +119,12 @@ func (h *Hook) Subscribe() error {
 	// API to subscribe and register a callback function that is invoked when a Project is added in the datamodel.
 	// Register*Callback() has the effect of subscription and also invoking a callback to the application code
 	// when there are datamodel changes to the objects of interest.
-	if _, err := h.nexusClient.TenancyMultiTenancy().Runtime().Orgs("*").Folders("*").Projects("*").RegisterAddCallback(h.projectCreated); err != nil {
+	if _, err := h.nexusClient.TenancyMultiTenancy().Runtime().Orgs("*").Folders("*").Projects("*").RegisterAddCallback(h.projectCreatedCallback); err != nil {
 		log.Errorf("Unable to register project creation callback: %+v", err)
 		return err
 	}
 
-	if _, err := h.nexusClient.TenancyMultiTenancy().Runtime().Orgs("*").Folders("*").Projects("*").RegisterUpdateCallback(h.projectUpdated); err != nil {
+	if _, err := h.nexusClient.TenancyMultiTenancy().Runtime().Orgs("*").Folders("*").Projects("*").RegisterUpdateCallback(h.projectUpdatedCallback); err != nil {
 		log.Errorf("Unable to register project deletion callback: %+v", err)
 		return err
 	}
@@ -119,7 +173,7 @@ func (h *Hook) setProjWatcherStatus(watcherObj *nexus.ProjectactivewatcherProjec
 	return nil
 }
 
-func (h *Hook) SetWatcherStatusIdle(proj *nexus.RuntimeprojectRuntimeProject) error {
+func (h *Hook) SetWatcherStatusIdle(proj NexusProjectInterface) error {
 	watcherObj, err := proj.GetActiveWatchers(context.Background(), appName)
 	if err == nil && watcherObj != nil {
 		// If watcher exists and is IDLE, simply return.
@@ -139,7 +193,7 @@ func (h *Hook) SetWatcherStatusIdle(proj *nexus.RuntimeprojectRuntimeProject) er
 	return err
 }
 
-func (h *Hook) SetWatcherStatusError(proj *nexus.RuntimeprojectRuntimeProject, message string) error {
+func (h *Hook) SetWatcherStatusError(proj NexusProjectInterface, message string) error {
 	watcherObj, err := proj.GetActiveWatchers(context.Background(), appName)
 	if err == nil && watcherObj != nil {
 		setStatusErr := h.setProjWatcherStatus(watcherObj, projectActiveWatcherv1.StatusIndicationError, message)
@@ -152,7 +206,7 @@ func (h *Hook) SetWatcherStatusError(proj *nexus.RuntimeprojectRuntimeProject, m
 	return err
 }
 
-func (h *Hook) SetWatcherStatusInProgress(proj *nexus.RuntimeprojectRuntimeProject, message string) error {
+func (h *Hook) SetWatcherStatusInProgress(proj NexusProjectInterface, message string) error {
 	watcherObj, err := proj.GetActiveWatchers(context.Background(), appName)
 	log.Infof("Setting watcher status to InProgress for project %s to %s", proj.DisplayName(), message)
 	if err == nil && watcherObj != nil {
@@ -166,7 +220,7 @@ func (h *Hook) SetWatcherStatusInProgress(proj *nexus.RuntimeprojectRuntimeProje
 	return err
 }
 
-func (h *Hook) StopWatchingProject(project *nexus.RuntimeprojectRuntimeProject) {
+func (h *Hook) StopWatchingProject(project NexusProjectInterface) {
 	ctx, cancel := context.WithTimeout(context.Background(), nexusTimeout)
 	defer cancel()
 
@@ -183,18 +237,23 @@ func (h *Hook) StopWatchingProject(project *nexus.RuntimeprojectRuntimeProject) 
 	log.Infof("Active watcher %s deleted for project %s", appName, project.DisplayName())
 }
 
-func (h *Hook) deleteProject(project *nexus.RuntimeprojectRuntimeProject) {
+func (h *Hook) deleteProject(project NexusProjectInterface) {
 	log.Infof("Project: %+v marked for deletion", project.DisplayName())
 
 	organizationName := h.getOrganizationName(project)
-	h.dispatcher.DeleteProject(organizationName, project.DisplayName(), string(project.UID), project)
+	h.dispatcher.DeleteProject(organizationName, project.DisplayName(), project.GetUID(), project)
+}
+
+func (h *Hook) projectCreatedCallback(nexusProject *nexus.RuntimeprojectRuntimeProject) {
+	project := (*NexusProject)(nexusProject)
+	h.projectCreated(project)
 }
 
 // Callback function to be invoked when Project is added.
-func (h *Hook) projectCreated(project *nexus.RuntimeprojectRuntimeProject) {
-	log.Infof("Runtime Project: %+v created", *project)
+func (h *Hook) projectCreated(project NexusProjectInterface) {
+	log.Infof("Runtime Project: %+v created", project.DisplayName())
 
-	if project.Spec.Deleted {
+	if project.IsDeleted() {
 		log.Info("Created event for deleted project, dispatching delete event")
 		h.deleteProject(project)
 		return
@@ -228,12 +287,12 @@ func (h *Hook) projectCreated(project *nexus.RuntimeprojectRuntimeProject) {
 
 	// handle the creation of the project
 	organizationName := h.getOrganizationName(project)
-	h.dispatcher.CreateProject(organizationName, project.DisplayName(), string(project.UID), project)
+	h.dispatcher.CreateProject(organizationName, project.DisplayName(), project.GetUID(), project)
 
 	log.Infof("Active watcher %s created for Project %s", watcherObj.DisplayName(), project.DisplayName())
 }
 
-func (h *Hook) getOrganizationName(project *nexus.RuntimeprojectRuntimeProject) string {
+func (h *Hook) getOrganizationName(project NexusProjectInterface) string {
 	ctx, cancel := context.WithTimeout(context.Background(), nexusTimeout)
 	defer cancel()
 
@@ -253,8 +312,13 @@ func (h *Hook) getOrganizationName(project *nexus.RuntimeprojectRuntimeProject) 
 }
 
 // Callback function to be invoked when Project is deleted.
-func (h *Hook) projectUpdated(_, project *nexus.RuntimeprojectRuntimeProject) {
-	if project.Spec.Deleted {
+func (h *Hook) projectUpdatedCallback(_, nexusProject *nexus.RuntimeprojectRuntimeProject) {
+	project := (*NexusProject)(nexusProject)
+	h.projectUpdated(project)
+}
+
+func (h *Hook) projectUpdated(project NexusProjectInterface) {
+	if project.IsDeleted() {
 		h.deleteProject(project)
 	}
 }

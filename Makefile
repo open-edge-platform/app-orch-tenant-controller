@@ -24,6 +24,8 @@ DOCKER_REGISTRY         ?= registry-rs.edgeorchestration.intel.com
 PUBLISH_SUB_PROJ        ?= app
 PUBLISH_CHART_PREFIX    ?= charts
 
+FUZZ_SECONDS            ?= 60
+
 DOCKER_TAG              := $(PUBLISH_REGISTRY)/$(PUBLISH_REPOSITORY)/$(PUBLISH_SUB_PROJ)/$(PUBLISH_NAME):$(VERSION)
 DOCKER_BUILD_COMMAND    := docker buildx build
 
@@ -103,6 +105,15 @@ go-test: ## Runs test stage
 	@echo "---MAKEFILE TEST---"
 	$(GOCMD) test -race -gcflags=-l `go list  $(PKG)/pkg/... | grep -v "/mocks" | grep -v "/test/"`
 	@echo "---END MAKEFILE TEST---"
+
+FUZZ_FUNCS ?= FuzzCreateRegistry FuzzCreateArtifact FuzzCreateDeploymentPackage
+FUZZ_FUNC_PATH := ./internal/northbound
+
+.PHONY: go-fuzz
+go-fuzz: ## GO fuzz tests
+	for func in $(FUZZ_FUNCS); do \
+		$(GOCMD) test $(FUZZ_FUNC_PATH) -fuzz $$func -fuzztime=${FUZZ_SECONDS}s -v; \
+	done
 
 .PHONY: go-cover-dependency
 go-cover-dependency: ## installs the gocover tool
