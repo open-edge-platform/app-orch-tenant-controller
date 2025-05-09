@@ -69,4 +69,3 @@ func (p *NexusProject) GetUID() string {
 func (p *NexusProject) IsDeleted() bool {
 	return p.Spec.Deleted
 }
-

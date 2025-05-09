@@ -16,15 +16,15 @@ import (
 )
 
 const (
-       appName = "config-provisioner"
+	appName = "config-provisioner"
 
-       // Allow only certain time for interacting with Nexus server
-       nexusTimeout = 5 * time.Second
+	// Allow only certain time for interacting with Nexus server
+	nexusTimeout = 5 * time.Second
 )
 
 type ProjectManager interface {
-	CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface	)
-	DeleteProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface	)
+	CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface)
+	DeleteProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface)
 }
 
 type Hook struct {

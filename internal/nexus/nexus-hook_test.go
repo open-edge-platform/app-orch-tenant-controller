@@ -72,8 +72,8 @@ func FuzzCreateProject(f *testing.F) {
 	f.Add("contains .", "a.")
 	f.Add("ID is long > 40", "aaaaa-bbbb-cccc-dddd-eeee-ffff-gggg-hhhhh")
 	f.Add("display name is too long at 40 chars - here", "project1")
-	f.Add( `display name contains
-new line`, "project1",)
+	f.Add(`display name contains
+new line`, "project1")
 
 	s := &NexusHookTestSuite{}
 	s.SetupSuite()
@@ -86,7 +86,7 @@ new line`, "project1",)
 
 		m := &MockProjectManager{}
 		h := NewNexusHook(m)
-	
+
 		project := NewMockNexusProject(displayName, uid)
 		h.projectCreated(project)
 
@@ -103,8 +103,8 @@ func FuzzDeleteProject(f *testing.F) {
 	f.Add("contains .", "a.")
 	f.Add("ID is long > 40", "aaaaa-bbbb-cccc-dddd-eeee-ffff-gggg-hhhhh")
 	f.Add("display name is too long at 40 chars - here", "project1")
-	f.Add( `display name contains
-new line`, "project1",)
+	f.Add(`display name contains
+new line`, "project1")
 
 	s := &NexusHookTestSuite{}
 	s.SetupSuite()
@@ -117,7 +117,7 @@ new line`, "project1",)
 
 		m := &MockProjectManager{}
 		h := NewNexusHook(m)
-	
+
 		project := NewMockNexusProject(displayName, uid)
 		project.isDeleted = true
 		h.projectUpdated(project)

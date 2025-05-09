@@ -28,10 +28,10 @@ func (f *MockNexusFolder) GetParent(ctx context.Context) (NexusOrganizationInter
 }
 
 type MockNexusProject struct {
-	isDeleted bool
-	displayName string
-	uid string
-	parent *MockNexusFolder
+	isDeleted      bool
+	displayName    string
+	uid            string
+	parent         *MockNexusFolder
 	activeWatchers map[string]*nexus.ProjectactivewatcherProjectActiveWatcher
 }
 
@@ -40,9 +40,9 @@ func (p *MockNexusProject) GetActiveWatchers(ctx context.Context, name string) (
 }
 
 func (p *MockNexusProject) AddActiveWatchers(ctx context.Context, watcher *projectActiveWatcherv1.ProjectActiveWatcher) (*nexus.ProjectactivewatcherProjectActiveWatcher, error) {
-    p.activeWatchers[watcher.Name] = &nexus.ProjectactivewatcherProjectActiveWatcher{ProjectActiveWatcher: watcher}
-		
-		//&nexus.ProjectactivewatcherProjectActiveWatcherSpec{StatusIndicator: projectActiveWatcherv1.StatusIndicationIdle, Message: "msg"}}
+	p.activeWatchers[watcher.Name] = &nexus.ProjectactivewatcherProjectActiveWatcher{ProjectActiveWatcher: watcher}
+
+	//&nexus.ProjectactivewatcherProjectActiveWatcherSpec{StatusIndicator: projectActiveWatcherv1.StatusIndicationIdle, Message: "msg"}}
 	return p.activeWatchers[watcher.Name], nil
 }
 
@@ -62,17 +62,16 @@ func (p *MockNexusProject) GetUID() string {
 	return p.uid
 }
 
-
 func (p *MockNexusProject) IsDeleted() bool {
 	return p.isDeleted
 }
 
 func NewMockNexusProject(name string, uid string) *MockNexusProject {
 	return &MockNexusProject{
-		isDeleted: false,
-		displayName: name,
-		uid: uid,
-		parent: &MockNexusFolder{},
+		isDeleted:      false,
+		displayName:    name,
+		uid:            uid,
+		parent:         &MockNexusFolder{},
 		activeWatchers: make(map[string]*nexus.ProjectactivewatcherProjectActiveWatcher),
 	}
 }
