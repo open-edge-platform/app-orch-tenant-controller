@@ -8,7 +8,6 @@ import (
 	"fmt"
 	nexushook "github.com/open-edge-platform/app-orch-tenant-controller/internal/nexus"
 	"github.com/open-edge-platform/orch-library/go/dazl"
-	nexus "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/nexus-client"
 )
 
 var log = dazl.GetPackageLogger()
@@ -18,7 +17,7 @@ type Event struct {
 	Organization string
 	Name         string
 	UUID         string
-	Project      *nexus.RuntimeprojectRuntimeProject
+	Project      nexushook.NexusProjectInterface
 }
 
 type PluginData *map[string]string

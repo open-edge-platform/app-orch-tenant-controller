@@ -10,7 +10,6 @@ import (
 	nexushook "github.com/open-edge-platform/app-orch-tenant-controller/internal/nexus"
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/plugins"
 	"github.com/open-edge-platform/orch-library/go/dazl"
-	nexus "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/nexus-client"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -162,7 +161,7 @@ func (m *Manager) handleProjectEvent(event plugins.Event) error {
 	return err
 }
 
-func (m *Manager) CreateProject(organizationName string, projectName string, projectUUID string, project *nexus.RuntimeprojectRuntimeProject) {
+func (m *Manager) CreateProject(organizationName string, projectName string, projectUUID string, project nexushook.NexusProjectInterface) {
 	log.Debugf("Creating project with organizationName=%s; projectName=%s; projectUUID=%s", organizationName, projectName, projectUUID)
 	e := plugins.Event{
 		EventType:    "create",
@@ -174,7 +173,7 @@ func (m *Manager) CreateProject(organizationName string, projectName string, pro
 	m.eventChan <- e
 }
 
-func (m *Manager) DeleteProject(organizationName string, projectName string, projectUUID string, project *nexus.RuntimeprojectRuntimeProject) {
+func (m *Manager) DeleteProject(organizationName string, projectName string, projectUUID string, project nexushook.NexusProjectInterface) {
 	log.Debugf("Deleting project with organizationName=%s; projectName=%s; projectUUID=%s", organizationName, projectName, projectUUID)
 	e := plugins.Event{
 		EventType:    "delete",
