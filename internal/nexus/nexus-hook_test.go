@@ -15,10 +15,16 @@ type MockProjectManager struct {
 }
 
 func (m *MockProjectManager) CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface) {
+	_ = orgName
+	_ = projectUUID
+	_ = project
 	m.created = append(m.created, projectName)
 }
 
 func (m *MockProjectManager) DeleteProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface) {
+	_ = orgName
+	_ = projectUUID
+	_ = project
 	m.deleted = append(m.deleted, projectName)
 }
 

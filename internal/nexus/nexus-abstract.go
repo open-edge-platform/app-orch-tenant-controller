@@ -11,15 +11,15 @@ import (
 
 // This module creates an inferface and abstraction layer for the Nexus API that allows it to easily be mocked.
 
-type NexusOrganizationInterface interface {
+type NexusOrganizationInterface interface { // nolint:revive
 	DisplayName() string
 }
 
-type NexusFolderInterface interface {
+type NexusFolderInterface interface { // nolint:revive
 	GetParent(ctx context.Context) (NexusOrganizationInterface, error)
 }
 
-type NexusProjectInterface interface {
+type NexusProjectInterface interface { // nolint:revive
 	GetActiveWatchers(ctx context.Context, name string) (*nexus.ProjectactivewatcherProjectActiveWatcher, error)
 	AddActiveWatchers(ctx context.Context, watcher *projectActiveWatcherv1.ProjectActiveWatcher) (*nexus.ProjectactivewatcherProjectActiveWatcher, error)
 	DeleteActiveWatchers(ctx context.Context, name string) error
@@ -31,7 +31,7 @@ type NexusProjectInterface interface {
 
 // NexusFolder is a wrapper around the Nexus RuntimefolderRuntimeFolder type
 
-type NexusFolder nexus.RuntimefolderRuntimeFolder
+type NexusFolder nexus.RuntimefolderRuntimeFolder // nolint:revive
 
 func (f *NexusFolder) GetParent(ctx context.Context) (NexusOrganizationInterface, error) {
 	return (*nexus.RuntimefolderRuntimeFolder)(f).GetParent(ctx)
@@ -39,7 +39,7 @@ func (f *NexusFolder) GetParent(ctx context.Context) (NexusOrganizationInterface
 
 // NexusProject is a wrapper around the Nexus RuntimeprojectRuntimeProject type
 
-type NexusProject nexus.RuntimeprojectRuntimeProject
+type NexusProject nexus.RuntimeprojectRuntimeProject // nolint:revive
 
 func (p *NexusProject) GetActiveWatchers(ctx context.Context, name string) (*nexus.ProjectactivewatcherProjectActiveWatcher, error) {
 	return (*nexus.RuntimeprojectRuntimeProject)(p).GetActiveWatchers(ctx, name)

@@ -23,6 +23,7 @@ type MockNexusFolder struct {
 }
 
 func (f *MockNexusFolder) GetParent(ctx context.Context) (NexusOrganizationInterface, error) {
+	_ = ctx
 	return f.parent, nil
 }
 
@@ -35,20 +36,25 @@ type MockNexusProject struct {
 }
 
 func (p *MockNexusProject) GetActiveWatchers(ctx context.Context, name string) (*nexus.ProjectactivewatcherProjectActiveWatcher, error) {
+	_ = ctx
 	return p.activeWatchers[name], nil
 }
 
 func (p *MockNexusProject) AddActiveWatchers(ctx context.Context, watcher *projectActiveWatcherv1.ProjectActiveWatcher) (*nexus.ProjectactivewatcherProjectActiveWatcher, error) {
+	_ = ctx
 	p.activeWatchers[watcher.Name] = &nexus.ProjectactivewatcherProjectActiveWatcher{ProjectActiveWatcher: watcher}
 
 	return p.activeWatchers[watcher.Name], nil
 }
 
 func (p *MockNexusProject) DeleteActiveWatchers(ctx context.Context, name string) error {
+	_ = ctx
+	_ = name
 	return nil
 }
 
 func (p *MockNexusProject) GetParent(ctx context.Context) (NexusFolderInterface, error) {
+	_ = ctx
 	return p.parent, nil
 }
 
