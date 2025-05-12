@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"testing"
+	projectActiveWatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectactivewatcher.edge-orchestrator.intel.com/v1"
 )
 
 type MockProjectManager struct {
@@ -44,7 +45,7 @@ func (s *NexusHookTestSuite) SetupTest() {
 func (s *NexusHookTestSuite) TearDownTest() {
 }
 
-func (s *NexusHookTestSuite) TestProjectUpdated() {
+func (s *NexusHookTestSuite) TestProjectCreated() {
 	m := &MockProjectManager{}
 	h := NewNexusHook(m)
 
@@ -52,6 +53,10 @@ func (s *NexusHookTestSuite) TestProjectUpdated() {
 	h.projectCreated(project)
 
 	s.Contains(m.created, "project1", "Expected project1 to be in the created list")
+
+	s.Equal(1, len(project.activeWatchers), "Expected 1 active watcher")
+	s.Contains(project.activeWatchers, "config-provisioner", "Expected 'config-provisioner' to be a key in the activeWatchers map")
+	s.Equal(projectActiveWatcherv1.StatusIndicationInProgress, project.activeWatchers["config-provisioner"].Spec.StatusIndicator, "Expected status to be 'InProgress'")
 }
 
 func (s *NexusHookTestSuite) TestProjectDeleted() {
@@ -63,6 +68,8 @@ func (s *NexusHookTestSuite) TestProjectDeleted() {
 	h.projectUpdated(project)
 
 	s.Contains(m.deleted, "project1", "Expected project1 to be in the created list")
+
+	s.Equal(0, len(project.activeWatchers), "Expected 0 active watcher")
 }
 
 func TestNexusHook(t *testing.T) {
