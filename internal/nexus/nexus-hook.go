@@ -5,14 +5,15 @@ package nexus
 
 import (
 	"context"
+	"fmt"
 	"github.com/labstack/gommon/log"
 	projectActiveWatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectactivewatcher.edge-orchestrator.intel.com/v1"
 	projectwatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectwatcher.edge-orchestrator.intel.com/v1"
 	nexus "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/nexus-client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+	"strings"
 	"time"
-	"fmt"
 )
 
 const (
@@ -20,6 +21,13 @@ const (
 
 	// Allow only certain time for interacting with Nexus server
 	nexusTimeout = 5 * time.Second
+
+	// Some reasonable limits for names that come from Nexus events, to guard against attack vector on event
+	// handling. Note that there is no guarantee the plugins will be able to correctly process names at this
+	// length. For example, some plugins such as the registry plugin may have their own limits on name
+	// lengths.
+	MaxOrgAndProjectNameLength = 240
+	MaxProjectUUIDLength       = 36
 )
 
 type ProjectManager interface {
@@ -191,6 +199,38 @@ func (h *Hook) deleteProject(project NexusProjectInterface) {
 	h.dispatcher.DeleteProject(organizationName, project.DisplayName(), project.GetUID(), project)
 }
 
+func (h *Hook) validateArgs(project NexusProjectInterface, organizationName string, projectName string, projectUUID string) error {
+	if len(organizationName) == 0 {
+		h.SetWatcherStatusError(project, "organization name is empty")
+		return fmt.Errorf("Organization name is empty")
+	}
+	if strings.Contains(organizationName, "\n") {
+		h.SetWatcherStatusError(project, "Organization name contains illegal characters")
+		return fmt.Errorf("Organization name contains illegal characters")
+	}
+	if len(projectName) == 0 {
+		h.SetWatcherStatusError(project, "project name is empty")
+		return fmt.Errorf("Project name is empty")
+	}
+	if strings.Contains(projectName, "\n") {
+		h.SetWatcherStatusError(project, "project name contains illegal characters")
+		return fmt.Errorf("Project name contains illegal characters")
+	}
+	if len(organizationName)+len(projectName) > MaxOrgAndProjectNameLength {
+		h.SetWatcherStatusError(project, "Sum of organization and project name is too long")
+		return fmt.Errorf("Sum of organization and project name is too long")
+	}
+	if len(projectUUID) == 0 {
+		h.SetWatcherStatusError(project, "project UUID is empty")
+		return fmt.Errorf("Project UUID is empty")
+	}
+	if len(projectUUID) > MaxProjectUUIDLength {
+		h.SetWatcherStatusError(project, "project UUID is too long")
+		return fmt.Errorf("Project UUID is too long")
+	}
+	return nil
+}
+
 func (h *Hook) projectCreatedCallback(nexusProject *nexus.RuntimeprojectRuntimeProject) {
 	project := (*NexusProject)(nexusProject)
 	err := h.projectCreated(project)
@@ -241,6 +281,11 @@ func (h *Hook) projectCreated(project NexusProjectInterface) error {
 
 	// handle the creation of the project
 	organizationName := h.getOrganizationName(project)
+	err = h.validateArgs(project, organizationName, project.DisplayName(), project.GetUID())
+	if err != nil {
+		// If there is an error, validateArgs() will also set the watcher status appropriately.
+		return err
+	}
 	h.dispatcher.CreateProject(organizationName, project.DisplayName(), project.GetUID(), project)
 
 	log.Infof("Active watcher %s created for Project %s", watcherObj.DisplayName(), project.DisplayName())
