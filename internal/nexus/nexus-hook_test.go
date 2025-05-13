@@ -72,6 +72,21 @@ func (s *NexusHookTestSuite) TestProjectDeleted() {
 	s.Equal(0, len(project.activeWatchers), "Expected 0 active watcher")
 }
 
+func (s *NexusHookTestSuite) TestSetWatcherStatusError() {
+	m := &MockProjectManager{}
+	h := NewNexusHook(m)
+
+	project := NewMockNexusProject("project1", "uid1")
+	h.projectCreated(project)
+
+	err := h.SetWatcherStatusError(project, "some error")
+	s.NoError(err, "Expected no error when setting watcher status to error")
+
+	s.Contains(project.activeWatchers, "config-provisioner", "Expected 'config-provisioner' to be a key in the activeWatchers map")
+	s.Equal(projectActiveWatcherv1.StatusIndicationError, project.activeWatchers["config-provisioner"].Spec.StatusIndicator, "Expected status to be 'Error'")
+	s.Equal("some error", project.activeWatchers["config-provisioner"].Spec.Message, "Expected status to be 'some error'")
+}
+
 func TestNexusHook(t *testing.T) {
 	suite.Run(t, &NexusHookTestSuite{})
 }
