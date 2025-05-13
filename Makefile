@@ -102,9 +102,7 @@ go-build: ## Runs build stage
 
 .PHONY: go-test
 go-test: ## Runs test stage
-	@echo "---MAKEFILE TEST---"
-	$(GOCMD) test -race -gcflags=-l `go list  $(PKG)/pkg/... | grep -v "/mocks" | grep -v "/test/"`
-	@echo "---END MAKEFILE TEST---"
+	$(GOCMD) test -race -gcflags=-l `go list $(PKG)/cmd/... $(PKG)/internal/...`
 
 FUZZ_FUNCS ?= FuzzCreateProject FuzzDeleteProject
 FUZZ_FUNC_PATH := ./internal/nexus
@@ -134,8 +132,7 @@ lint: yamllint go-lint hadolint mdlint ## Runs lint stage
 	helm lint deploy/charts/app-orch-tenant-controller
 
 .PHONY: test
-test: ## Runs test stage
-	$(GOCMD) test -race -gcflags=-l `go list $(PKG)/internal/...`
+test: go-test ## Runs test stage
 
 .PHONY: coverage
 coverage: go-cover-dependency ## Runs coverage stage
