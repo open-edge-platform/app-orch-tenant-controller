@@ -30,6 +30,7 @@ func (f *MockNexusFolder) GetParent(ctx context.Context) (NexusOrganizationInter
 type MockNexusProjectActiveWatcher nexus.ProjectactivewatcherProjectActiveWatcher
 
 func (w *MockNexusProjectActiveWatcher) Update(ctx context.Context) error {
+	_ = ctx
 	return nil
 }
 

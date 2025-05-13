@@ -55,7 +55,7 @@ func (f *NexusFolder) GetParent(ctx context.Context) (NexusOrganizationInterface
 
 // NexusProjectActiveWatcher is an abstraction around the Nexus ProjectactivewatcherProjectActiveWatcher type
 
-type NexusProjectActiveWatcher nexus.ProjectactivewatcherProjectActiveWatcher
+type NexusProjectActiveWatcher nexus.ProjectactivewatcherProjectActiveWatcher // nolint:revive
 
 func (w *NexusProjectActiveWatcher) Update(ctx context.Context) error {
 	return (*nexus.ProjectactivewatcherProjectActiveWatcher)(w).Update(ctx)

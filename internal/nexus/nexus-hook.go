@@ -200,31 +200,52 @@ func (h *Hook) deleteProject(project NexusProjectInterface) {
 
 func (h *Hook) validateArgs(project NexusProjectInterface, organizationName string, projectName string, projectUUID string) error {
 	if len(organizationName) == 0 {
-		h.SetWatcherStatusError(project, "organization name is empty")
+		err := h.SetWatcherStatusError(project, "organization name is empty")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
 		return fmt.Errorf("Organization name is empty")
 	}
 	if strings.Contains(organizationName, "\n") {
-		h.SetWatcherStatusError(project, "Organization name contains illegal characters")
+		err := h.SetWatcherStatusError(project, "Organization name contains illegal characters")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
 		return fmt.Errorf("Organization name contains illegal characters")
 	}
 	if len(projectName) == 0 {
-		h.SetWatcherStatusError(project, "project name is empty")
+		err := h.SetWatcherStatusError(project, "project name is empty")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
 		return fmt.Errorf("Project name is empty")
 	}
 	if strings.Contains(projectName, "\n") {
-		h.SetWatcherStatusError(project, "project name contains illegal characters")
+		err := h.SetWatcherStatusError(project, "project name contains illegal characters")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
 		return fmt.Errorf("Project name contains illegal characters")
 	}
 	if len(organizationName)+len(projectName) > MaxOrgAndProjectNameLength {
-		h.SetWatcherStatusError(project, "Sum of organization and project name is too long")
+		err := h.SetWatcherStatusError(project, "Sum of organization and project name is too long")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
 		return fmt.Errorf("Sum of organization and project name is too long")
 	}
 	if len(projectUUID) == 0 {
-		h.SetWatcherStatusError(project, "project UUID is empty")
+		err := h.SetWatcherStatusError(project, "project UUID is empty")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
 		return fmt.Errorf("Project UUID is empty")
 	}
 	if len(projectUUID) > MaxProjectUUIDLength {
-		h.SetWatcherStatusError(project, "project UUID is too long")
+		err := h.SetWatcherStatusError(project, "project UUID is too long")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
 		return fmt.Errorf("Project UUID is too long")
 	}
 	return nil

@@ -51,7 +51,8 @@ func (s *NexusHookTestSuite) TestProjectCreated() {
 	h := NewNexusHook(m)
 
 	project := NewMockNexusProject("project1", "uid1")
-	h.projectCreated(project)
+	err := h.projectCreated(project)
+	s.NoError(err, "Expected no error when creating project")
 
 	s.Contains(m.created, "project1", "Expected project1 to be in the created list")
 
@@ -78,9 +79,10 @@ func (s *NexusHookTestSuite) TestSetWatcherStatusError() {
 	h := NewNexusHook(m)
 
 	project := NewMockNexusProject("project1", "uid1")
-	h.projectCreated(project)
+	err := h.projectCreated(project)
+	s.NoError(err, "Expected no error when creating project")
 
-	err := h.SetWatcherStatusError(project, "some error")
+	err = h.SetWatcherStatusError(project, "some error")
 	s.NoError(err, "Expected no error when setting watcher status to error")
 
 	s.Contains(project.activeWatchers, "config-provisioner", "Expected 'config-provisioner' to be a key in the activeWatchers map")
@@ -93,9 +95,10 @@ func (s *NexusHookTestSuite) TestSetWatcherStatusInProgress() {
 	h := NewNexusHook(m)
 
 	project := NewMockNexusProject("project1", "uid1")
-	h.projectCreated(project)
+	err := h.projectCreated(project)
+	s.NoError(err, "Expected no error when creating project")
 
-	err := h.SetWatcherStatusInProgress(project, "making progress")
+	err = h.SetWatcherStatusInProgress(project, "making progress")
 	s.NoError(err, "Expected no error when setting watcher status to in progress")
 
 	s.Contains(project.activeWatchers, "config-provisioner", "Expected 'config-provisioner' to be a key in the activeWatchers map")
@@ -108,9 +111,10 @@ func (s *NexusHookTestSuite) TestSetWatcherStatusIdle() {
 	h := NewNexusHook(m)
 
 	project := NewMockNexusProject("project1", "uid1")
-	h.projectCreated(project)
+	err := h.projectCreated(project)
+	s.NoError(err, "Expected no error when creating project")
 
-	err := h.SetWatcherStatusIdle(project)
+	err = h.SetWatcherStatusIdle(project)
 	s.NoError(err, "Expected no error when setting watcher status to idle")
 
 	s.Contains(project.activeWatchers, "config-provisioner", "Expected 'config-provisioner' to be a key in the activeWatchers map")
