@@ -154,7 +154,7 @@ new line`, "project1")
 		err := h.projectCreated(project)
 
 		if err != nil {
-			allowedErr := []string{"Organization name is empty", "Project name is empty", "Sum of organization and project name is too long", "Project UUID is empty", "Project UUID is too long", "Organization name contains illegal characters", "Project name contains illegal characters"}
+			allowedErr := []string{"Organization name is empty", "Organization name is too long", "Project name is empty", "Project name is too long", "Project UUID is empty", "Project UUID is too long", "Organization name contains illegal characters", "Project name contains illegal characters"}
 			assert.Contains(t, allowedErr, err.Error(), "Expected error to be one of the allowed errors")
 		} else {
 			assert.Contains(t, m.created, displayName, "Expected project to be in the created list")
