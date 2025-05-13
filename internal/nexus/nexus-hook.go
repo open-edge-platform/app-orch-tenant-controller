@@ -25,8 +25,9 @@ const (
 	// Some reasonable limits for names that come from Nexus events, to guard against attack vector on event
 	// handling. Note that there is no guarantee the plugins will be able to correctly process names at this
 	// length.
-	MaxOrgAndProjectNameLength = 240 // Harbor project name length is 255 characters
-	MaxProjectUUIDLength       = 36
+	MaxOrganizationNameLength = 63 // Same limit as used in tenant data model
+	MaxProjectNameLength      = 63 // Same limit as used in tenant data model
+	MaxProjectUUIDLength      = 36
 )
 
 type ProjectManager interface {
@@ -213,6 +214,13 @@ func (h *Hook) validateArgs(project NexusProjectInterface, organizationName stri
 		}
 		return fmt.Errorf("Organization name contains illegal characters")
 	}
+	if len(organizationName) > MaxOrganizationNameLength {
+		err := h.SetWatcherStatusError(project, "Organization name is too long")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
+		return fmt.Errorf("Organization name is too long")
+	}
 	if len(projectName) == 0 {
 		err := h.SetWatcherStatusError(project, "project name is empty")
 		if err != nil {
@@ -227,12 +235,12 @@ func (h *Hook) validateArgs(project NexusProjectInterface, organizationName stri
 		}
 		return fmt.Errorf("Project name contains illegal characters")
 	}
-	if len(organizationName)+len(projectName) > MaxOrgAndProjectNameLength {
-		err := h.SetWatcherStatusError(project, "Sum of organization and project name is too long")
+	if len(projectName) > MaxProjectNameLength {
+		err := h.SetWatcherStatusError(project, "Project name is too long")
 		if err != nil {
 			log.Errorf("Unable to set watcher error status: %v", err)
 		}
-		return fmt.Errorf("Sum of organization and project name is too long")
+		return fmt.Errorf("Project name is too long")
 	}
 	if len(projectUUID) == 0 {
 		err := h.SetWatcherStatusError(project, "project UUID is empty")
