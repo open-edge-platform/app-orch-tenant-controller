@@ -104,6 +104,10 @@ new line`, "project1")
 		h.projectCreated(project)
 
 		assert.Contains(t, m.created, displayName, "Expected project to be in the created list")
+
+		s.Equal(1, len(project.activeWatchers), "Expected 1 active watcher")
+		s.Contains(project.activeWatchers, "config-provisioner", "Expected 'config-provisioner' to be a key in the activeWatchers map")
+		s.Equal(projectActiveWatcherv1.StatusIndicationInProgress, project.activeWatchers["config-provisioner"].Spec.StatusIndicator, "Expected status to be 'InProgress'")
 	})
 }
 
@@ -136,5 +140,7 @@ new line`, "project1")
 		h.projectUpdated(project)
 
 		assert.Contains(t, m.deleted, displayName, "Expected project to be in the created list")
+
+		s.Equal(0, len(project.activeWatchers), "Expected 0 active watcher")
 	})
 }
