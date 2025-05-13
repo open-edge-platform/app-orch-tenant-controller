@@ -24,9 +24,8 @@ const (
 
 	// Some reasonable limits for names that come from Nexus events, to guard against attack vector on event
 	// handling. Note that there is no guarantee the plugins will be able to correctly process names at this
-	// length. For example, some plugins such as the registry plugin may have their own limits on name
-	// lengths.
-	MaxOrgAndProjectNameLength = 240
+	// length.
+	MaxOrgAndProjectNameLength = 240 // Harbor project name length is 255 characters
 	MaxProjectUUIDLength       = 36
 )
 
