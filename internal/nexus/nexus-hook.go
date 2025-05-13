@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"time"
+	"fmt"
 )
 
 const (
@@ -105,10 +106,10 @@ func (h *Hook) safeUnixTime() uint64 {
 	return uint64(t)
 }
 
-func (h *Hook) setProjWatcherStatus(watcherObj *nexus.ProjectactivewatcherProjectActiveWatcher, statusInd projectActiveWatcherv1.ActiveWatcherStatus, status string) error {
-	watcherObj.Spec.StatusIndicator = statusInd
-	watcherObj.Spec.Message = status
-	watcherObj.Spec.TimeStamp = h.safeUnixTime()
+func (h *Hook) setProjWatcherStatus(watcherObj NexusProjectActiveWatcherInterface, statusInd projectActiveWatcherv1.ActiveWatcherStatus, status string) error {
+	watcherObj.GetSpec().StatusIndicator = statusInd
+	watcherObj.GetSpec().Message = status
+	watcherObj.GetSpec().TimeStamp = h.safeUnixTime()
 	log.Debugf("ProjWatcher object to update: %+v", watcherObj)
 
 	err := watcherObj.Update(context.Background())
@@ -123,7 +124,7 @@ func (h *Hook) SetWatcherStatusIdle(proj NexusProjectInterface) error {
 	watcherObj, err := proj.GetActiveWatchers(context.Background(), appName)
 	if err == nil && watcherObj != nil {
 		// If watcher exists and is IDLE, simply return.
-		if watcherObj.Spec.StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle {
+		if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle {
 			log.Infof("Skipping processing of projectactivewatcher %v as it is already created and set to IDLE", appName)
 			return nil
 		}
@@ -192,17 +193,23 @@ func (h *Hook) deleteProject(project NexusProjectInterface) {
 
 func (h *Hook) projectCreatedCallback(nexusProject *nexus.RuntimeprojectRuntimeProject) {
 	project := (*NexusProject)(nexusProject)
-	h.projectCreated(project)
+	err := h.projectCreated(project)
+	if err != nil {
+		// We're inside a callback, so there's no caller to pass the error up to.
+		// We've also potentially failed to create the watcher, so error status won't be reported there either.
+		// Just log it and give up.
+		log.Errorf("Error in projectCreatedCallback: %v", err)
+	}
 }
 
 // Callback function to be invoked when Project is added.
-func (h *Hook) projectCreated(project NexusProjectInterface) {
+func (h *Hook) projectCreated(project NexusProjectInterface) error {
 	log.Infof("Runtime Project: %+v created", project.DisplayName())
 
 	if project.IsDeleted() {
 		log.Info("Created event for deleted project, dispatching delete event")
 		h.deleteProject(project)
-		return
+		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), nexusTimeout)
@@ -219,16 +226,17 @@ func (h *Hook) projectCreated(project NexusProjectInterface) {
 			TimeStamp:       h.safeUnixTime(),
 		},
 	})
-	if watcherObj.Spec.StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.Spec.Message == "Created" {
+	if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.GetSpec().Message == "Created" {
 		// This is a rerun of an event we already processed - no more processing required
 		log.Infof("Watch %s for project %s already provisioned", watcherObj.DisplayName(), project.DisplayName())
-		return
+		return nil
 	}
 
 	if nexus.IsAlreadyExists(err) {
 		log.Warnf("Watch %s already exists for project %s", watcherObj.DisplayName(), project.DisplayName())
 	} else if err != nil {
-		log.Errorf("Error %+v while creating watch %s for project %s", err, appName, project.DisplayName())
+		// NOTE: This will permantently fail project creation -- there is no recovery if we cannot create the watcher.
+		return fmt.Errorf("Error %+v while creating watch %s for project %s", err, appName, project.DisplayName())
 	}
 
 	// handle the creation of the project
@@ -236,6 +244,8 @@ func (h *Hook) projectCreated(project NexusProjectInterface) {
 	h.dispatcher.CreateProject(organizationName, project.DisplayName(), project.GetUID(), project)
 
 	log.Infof("Active watcher %s created for Project %s", watcherObj.DisplayName(), project.DisplayName())
+
+	return nil
 }
 
 func (h *Hook) getOrganizationName(project NexusProjectInterface) string {
