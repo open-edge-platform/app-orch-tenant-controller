@@ -27,22 +27,37 @@ func (f *MockNexusFolder) GetParent(ctx context.Context) (NexusOrganizationInter
 	return f.parent, nil
 }
 
+type MockNexusProjectActiveWatcher nexus.ProjectactivewatcherProjectActiveWatcher
+
+func (w *MockNexusProjectActiveWatcher) Update(ctx context.Context) error {
+	_ = ctx
+	return nil
+}
+
+func (w *MockNexusProjectActiveWatcher) GetSpec() *projectActiveWatcherv1.ProjectActiveWatcherSpec {
+	return &w.Spec
+}
+
+func (w *MockNexusProjectActiveWatcher) DisplayName() string {
+	return (*nexus.ProjectactivewatcherProjectActiveWatcher)(w).DisplayName()
+}
+
 type MockNexusProject struct {
 	isDeleted      bool
 	displayName    string
 	uid            string
 	parent         *MockNexusFolder
-	activeWatchers map[string]*nexus.ProjectactivewatcherProjectActiveWatcher
+	activeWatchers map[string]*MockNexusProjectActiveWatcher
 }
 
-func (p *MockNexusProject) GetActiveWatchers(ctx context.Context, name string) (*nexus.ProjectactivewatcherProjectActiveWatcher, error) {
+func (p *MockNexusProject) GetActiveWatchers(ctx context.Context, name string) (NexusProjectActiveWatcherInterface, error) {
 	_ = ctx
 	return p.activeWatchers[name], nil
 }
 
-func (p *MockNexusProject) AddActiveWatchers(ctx context.Context, watcher *projectActiveWatcherv1.ProjectActiveWatcher) (*nexus.ProjectactivewatcherProjectActiveWatcher, error) {
+func (p *MockNexusProject) AddActiveWatchers(ctx context.Context, watcher *projectActiveWatcherv1.ProjectActiveWatcher) (NexusProjectActiveWatcherInterface, error) {
 	_ = ctx
-	p.activeWatchers[watcher.Name] = &nexus.ProjectactivewatcherProjectActiveWatcher{ProjectActiveWatcher: watcher}
+	p.activeWatchers[watcher.Name] = &MockNexusProjectActiveWatcher{ProjectActiveWatcher: watcher}
 
 	return p.activeWatchers[watcher.Name], nil
 }
@@ -76,6 +91,6 @@ func NewMockNexusProject(name string, uid string) *MockNexusProject {
 		displayName:    name,
 		uid:            uid,
 		parent:         &MockNexusFolder{},
-		activeWatchers: make(map[string]*nexus.ProjectactivewatcherProjectActiveWatcher),
+		activeWatchers: make(map[string]*MockNexusProjectActiveWatcher),
 	}
 }

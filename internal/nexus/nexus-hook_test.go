@@ -4,8 +4,10 @@
 package nexus
 
 import (
+	projectActiveWatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectactivewatcher.edge-orchestrator.intel.com/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"strings"
 	"testing"
 )
 
@@ -44,14 +46,19 @@ func (s *NexusHookTestSuite) SetupTest() {
 func (s *NexusHookTestSuite) TearDownTest() {
 }
 
-func (s *NexusHookTestSuite) TestProjectUpdated() {
+func (s *NexusHookTestSuite) TestProjectCreated() {
 	m := &MockProjectManager{}
 	h := NewNexusHook(m)
 
 	project := NewMockNexusProject("project1", "uid1")
-	h.projectCreated(project)
+	err := h.projectCreated(project)
+	s.NoError(err, "Expected no error when creating project")
 
 	s.Contains(m.created, "project1", "Expected project1 to be in the created list")
+
+	s.Equal(1, len(project.activeWatchers), "Expected 1 active watcher")
+	s.Contains(project.activeWatchers, "config-provisioner", "Expected 'config-provisioner' to be a key in the activeWatchers map")
+	s.Equal(projectActiveWatcherv1.StatusIndicationInProgress, project.activeWatchers["config-provisioner"].Spec.StatusIndicator, "Expected status to be 'InProgress'")
 }
 
 func (s *NexusHookTestSuite) TestProjectDeleted() {
@@ -63,6 +70,55 @@ func (s *NexusHookTestSuite) TestProjectDeleted() {
 	h.projectUpdated(project)
 
 	s.Contains(m.deleted, "project1", "Expected project1 to be in the created list")
+
+	s.Equal(0, len(project.activeWatchers), "Expected 0 active watcher")
+}
+
+func (s *NexusHookTestSuite) TestSetWatcherStatusError() {
+	m := &MockProjectManager{}
+	h := NewNexusHook(m)
+
+	project := NewMockNexusProject("project1", "uid1")
+	err := h.projectCreated(project)
+	s.NoError(err, "Expected no error when creating project")
+
+	err = h.SetWatcherStatusError(project, "some error")
+	s.NoError(err, "Expected no error when setting watcher status to error")
+
+	s.Contains(project.activeWatchers, "config-provisioner", "Expected 'config-provisioner' to be a key in the activeWatchers map")
+	s.Equal(projectActiveWatcherv1.StatusIndicationError, project.activeWatchers["config-provisioner"].Spec.StatusIndicator, "Expected status to be 'Error'")
+	s.Equal("some error", project.activeWatchers["config-provisioner"].Spec.Message, "Expected status to be 'some error'")
+}
+
+func (s *NexusHookTestSuite) TestSetWatcherStatusInProgress() {
+	m := &MockProjectManager{}
+	h := NewNexusHook(m)
+
+	project := NewMockNexusProject("project1", "uid1")
+	err := h.projectCreated(project)
+	s.NoError(err, "Expected no error when creating project")
+
+	err = h.SetWatcherStatusInProgress(project, "making progress")
+	s.NoError(err, "Expected no error when setting watcher status to in progress")
+
+	s.Contains(project.activeWatchers, "config-provisioner", "Expected 'config-provisioner' to be a key in the activeWatchers map")
+	s.Equal(projectActiveWatcherv1.StatusIndicationInProgress, project.activeWatchers["config-provisioner"].Spec.StatusIndicator, "Expected status to be 'In Progress'")
+	s.Equal("making progress", project.activeWatchers["config-provisioner"].Spec.Message, "Expected status to be 'making progress'")
+}
+
+func (s *NexusHookTestSuite) TestSetWatcherStatusIdle() {
+	m := &MockProjectManager{}
+	h := NewNexusHook(m)
+
+	project := NewMockNexusProject("project1", "uid1")
+	err := h.projectCreated(project)
+	s.NoError(err, "Expected no error when creating project")
+
+	err = h.SetWatcherStatusIdle(project)
+	s.NoError(err, "Expected no error when setting watcher status to idle")
+
+	s.Contains(project.activeWatchers, "config-provisioner", "Expected 'config-provisioner' to be a key in the activeWatchers map")
+	s.Equal(projectActiveWatcherv1.StatusIndicationIdle, project.activeWatchers["config-provisioner"].Spec.StatusIndicator, "Expected status to be 'Idle'")
 }
 
 func TestNexusHook(t *testing.T) {
@@ -77,7 +133,8 @@ func FuzzCreateProject(f *testing.F) {
 	f.Add("Single letter OK", "a")
 	f.Add("contains .", "a.")
 	f.Add("ID is long > 40", "aaaaa-bbbb-cccc-dddd-eeee-ffff-gggg-hhhhh")
-	f.Add("display name is too long at 40 chars - here", "project1")
+	f.Add("display name is kinda long ----------------------- here", "project1")
+	f.Add(strings.Repeat("display name is very long", 10), "project1")
 	f.Add(`display name contains
 new line`, "project1")
 
@@ -94,9 +151,18 @@ new line`, "project1")
 		h := NewNexusHook(m)
 
 		project := NewMockNexusProject(displayName, uid)
-		h.projectCreated(project)
+		err := h.projectCreated(project)
 
-		assert.Contains(t, m.created, displayName, "Expected project to be in the created list")
+		if err != nil {
+			allowedErr := []string{"Organization name is empty", "Project name is empty", "Sum of organization and project name is too long", "Project UUID is empty", "Project UUID is too long", "Organization name contains illegal characters", "Project name contains illegal characters"}
+			assert.Contains(t, allowedErr, err.Error(), "Expected error to be one of the allowed errors")
+		} else {
+			assert.Contains(t, m.created, displayName, "Expected project to be in the created list")
+
+			s.Equal(1, len(project.activeWatchers), "Expected 1 active watcher")
+			s.Contains(project.activeWatchers, "config-provisioner", "Expected 'config-provisioner' to be a key in the activeWatchers map")
+			s.Equal(projectActiveWatcherv1.StatusIndicationInProgress, project.activeWatchers["config-provisioner"].Spec.StatusIndicator, "Expected status to be 'InProgress'")
+		}
 	})
 }
 
@@ -108,7 +174,8 @@ func FuzzDeleteProject(f *testing.F) {
 	f.Add("Single letter OK", "a")
 	f.Add("contains .", "a.")
 	f.Add("ID is long > 40", "aaaaa-bbbb-cccc-dddd-eeee-ffff-gggg-hhhhh")
-	f.Add("display name is too long at 40 chars - here", "project1")
+	f.Add("display name is kinda long ----------------------- here", "project1")
+	f.Add(strings.Repeat("display name is very long", 10), "project1")
 	f.Add(`display name contains
 new line`, "project1")
 
@@ -129,5 +196,7 @@ new line`, "project1")
 		h.projectUpdated(project)
 
 		assert.Contains(t, m.deleted, displayName, "Expected project to be in the created list")
+
+		s.Equal(0, len(project.activeWatchers), "Expected 0 active watcher")
 	})
 }

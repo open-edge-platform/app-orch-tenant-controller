@@ -5,12 +5,14 @@ package nexus
 
 import (
 	"context"
+	"fmt"
 	"github.com/labstack/gommon/log"
 	projectActiveWatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectactivewatcher.edge-orchestrator.intel.com/v1"
 	projectwatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectwatcher.edge-orchestrator.intel.com/v1"
 	nexus "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/nexus-client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+	"strings"
 	"time"
 )
 
@@ -19,6 +21,13 @@ const (
 
 	// Allow only certain time for interacting with Nexus server
 	nexusTimeout = 5 * time.Second
+
+	// Some reasonable limits for names that come from Nexus events, to guard against attack vector on event
+	// handling. Note that there is no guarantee the plugins will be able to correctly process names at this
+	// length.
+	MaxOrganizationNameLength = 63 // Same limit as used in tenant data model
+	MaxProjectNameLength      = 63 // Same limit as used in tenant data model
+	MaxProjectUUIDLength      = 36
 )
 
 type ProjectManager interface {
@@ -105,10 +114,10 @@ func (h *Hook) safeUnixTime() uint64 {
 	return uint64(t)
 }
 
-func (h *Hook) setProjWatcherStatus(watcherObj *nexus.ProjectactivewatcherProjectActiveWatcher, statusInd projectActiveWatcherv1.ActiveWatcherStatus, status string) error {
-	watcherObj.Spec.StatusIndicator = statusInd
-	watcherObj.Spec.Message = status
-	watcherObj.Spec.TimeStamp = h.safeUnixTime()
+func (h *Hook) setProjWatcherStatus(watcherObj NexusProjectActiveWatcherInterface, statusInd projectActiveWatcherv1.ActiveWatcherStatus, status string) error {
+	watcherObj.GetSpec().StatusIndicator = statusInd
+	watcherObj.GetSpec().Message = status
+	watcherObj.GetSpec().TimeStamp = h.safeUnixTime()
 	log.Debugf("ProjWatcher object to update: %+v", watcherObj)
 
 	err := watcherObj.Update(context.Background())
@@ -123,7 +132,7 @@ func (h *Hook) SetWatcherStatusIdle(proj NexusProjectInterface) error {
 	watcherObj, err := proj.GetActiveWatchers(context.Background(), appName)
 	if err == nil && watcherObj != nil {
 		// If watcher exists and is IDLE, simply return.
-		if watcherObj.Spec.StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle {
+		if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle {
 			log.Infof("Skipping processing of projectactivewatcher %v as it is already created and set to IDLE", appName)
 			return nil
 		}
@@ -190,19 +199,85 @@ func (h *Hook) deleteProject(project NexusProjectInterface) {
 	h.dispatcher.DeleteProject(organizationName, project.DisplayName(), project.GetUID(), project)
 }
 
+func (h *Hook) validateArgs(project NexusProjectInterface, organizationName string, projectName string, projectUUID string) error {
+	if len(organizationName) == 0 {
+		err := h.SetWatcherStatusError(project, "organization name is empty")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
+		return fmt.Errorf("Organization name is empty")
+	}
+	if strings.Contains(organizationName, "\n") {
+		err := h.SetWatcherStatusError(project, "Organization name contains illegal characters")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
+		return fmt.Errorf("Organization name contains illegal characters")
+	}
+	if len(organizationName) > MaxOrganizationNameLength {
+		err := h.SetWatcherStatusError(project, "Organization name is too long")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
+		return fmt.Errorf("Organization name is too long")
+	}
+	if len(projectName) == 0 {
+		err := h.SetWatcherStatusError(project, "project name is empty")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
+		return fmt.Errorf("Project name is empty")
+	}
+	if strings.Contains(projectName, "\n") {
+		err := h.SetWatcherStatusError(project, "project name contains illegal characters")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
+		return fmt.Errorf("Project name contains illegal characters")
+	}
+	if len(projectName) > MaxProjectNameLength {
+		err := h.SetWatcherStatusError(project, "Project name is too long")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
+		return fmt.Errorf("Project name is too long")
+	}
+	if len(projectUUID) == 0 {
+		err := h.SetWatcherStatusError(project, "project UUID is empty")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
+		return fmt.Errorf("Project UUID is empty")
+	}
+	if len(projectUUID) > MaxProjectUUIDLength {
+		err := h.SetWatcherStatusError(project, "project UUID is too long")
+		if err != nil {
+			log.Errorf("Unable to set watcher error status: %v", err)
+		}
+		return fmt.Errorf("Project UUID is too long")
+	}
+	return nil
+}
+
 func (h *Hook) projectCreatedCallback(nexusProject *nexus.RuntimeprojectRuntimeProject) {
 	project := (*NexusProject)(nexusProject)
-	h.projectCreated(project)
+	err := h.projectCreated(project)
+	if err != nil {
+		// We're inside a callback, so there's no caller to pass the error up to.
+		// We've also potentially failed to create the watcher, so error status won't be reported there either.
+		// Just log it and give up.
+		log.Errorf("Error in projectCreatedCallback: %v", err)
+	}
 }
 
 // Callback function to be invoked when Project is added.
-func (h *Hook) projectCreated(project NexusProjectInterface) {
+func (h *Hook) projectCreated(project NexusProjectInterface) error {
 	log.Infof("Runtime Project: %+v created", project.DisplayName())
 
 	if project.IsDeleted() {
 		log.Info("Created event for deleted project, dispatching delete event")
 		h.deleteProject(project)
-		return
+		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), nexusTimeout)
@@ -219,23 +294,31 @@ func (h *Hook) projectCreated(project NexusProjectInterface) {
 			TimeStamp:       h.safeUnixTime(),
 		},
 	})
-	if watcherObj.Spec.StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.Spec.Message == "Created" {
+	if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.GetSpec().Message == "Created" {
 		// This is a rerun of an event we already processed - no more processing required
 		log.Infof("Watch %s for project %s already provisioned", watcherObj.DisplayName(), project.DisplayName())
-		return
+		return nil
 	}
 
 	if nexus.IsAlreadyExists(err) {
 		log.Warnf("Watch %s already exists for project %s", watcherObj.DisplayName(), project.DisplayName())
 	} else if err != nil {
-		log.Errorf("Error %+v while creating watch %s for project %s", err, appName, project.DisplayName())
+		// NOTE: This will permantently fail project creation -- there is no recovery if we cannot create the watcher.
+		return fmt.Errorf("Error %+v while creating watch %s for project %s", err, appName, project.DisplayName())
 	}
 
 	// handle the creation of the project
 	organizationName := h.getOrganizationName(project)
+	err = h.validateArgs(project, organizationName, project.DisplayName(), project.GetUID())
+	if err != nil {
+		// If there is an error, validateArgs() will also set the watcher status appropriately.
+		return err
+	}
 	h.dispatcher.CreateProject(organizationName, project.DisplayName(), project.GetUID(), project)
 
 	log.Infof("Active watcher %s created for Project %s", watcherObj.DisplayName(), project.DisplayName())
+
+	return nil
 }
 
 func (h *Hook) getOrganizationName(project NexusProjectInterface) string {
