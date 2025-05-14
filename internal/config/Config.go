@@ -5,11 +5,13 @@ package config
 
 import (
 	"fmt"
-	"github.com/labstack/gommon/log"
+	"github.com/open-edge-platform/orch-library/go/dazl"
 	"os"
 	"strconv"
 	"time"
 )
+
+var log = dazl.GetPackageLogger()
 
 // Configuration is a manager configuration
 type Configuration struct {

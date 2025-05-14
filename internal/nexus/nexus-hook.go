@@ -6,7 +6,7 @@ package nexus
 import (
 	"context"
 	"fmt"
-	"github.com/labstack/gommon/log"
+	"github.com/open-edge-platform/orch-library/go/dazl"
 	projectActiveWatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectactivewatcher.edge-orchestrator.intel.com/v1"
 	projectwatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectwatcher.edge-orchestrator.intel.com/v1"
 	nexus "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/nexus-client"
@@ -29,6 +29,8 @@ const (
 	MaxProjectNameLength      = 63 // Same limit as used in tenant data model
 	MaxProjectUUIDLength      = 36
 )
+
+var log = dazl.GetPackageLogger()
 
 type ProjectManager interface {
 	CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface)
