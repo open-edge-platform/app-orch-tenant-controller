@@ -34,8 +34,6 @@ const (
 	ManifestTagAnnotationKey = "app-orch-tenant-controller/manifest-tag"
 )
 
-var log = dazl.GetPackageLogger()
-
 type ProjectManager interface {
 	CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface)
 	DeleteProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface)
@@ -183,7 +181,7 @@ func (h *Hook) SetWatcherStatusInProgress(proj NexusProjectInterface, message st
 	return err
 }
 
-func (h *Hook) UpdateProjectManifestTag(proj *nexus.RuntimeprojectRuntimeProject) error {
+func (h *Hook) UpdateProjectManifestTag(proj NexusProjectInterface) error {
 	log.Infof("Setting watcher manifest tag for project %s to %s", proj.DisplayName(), h.dispatcher.ManifestTag())
 	watcherObj, err := proj.GetActiveWatchers(context.Background(), appName)
 	if err != nil {
@@ -322,7 +320,7 @@ func (h *Hook) projectCreated(project NexusProjectInterface) error {
 
 	if err != nil {
 		log.Errorf("Failed to create ProjectActiveWatcher object with an error: %v", err)
-		return
+		return err
 	}
 
     if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.GetSpec().Message == "Created" {
@@ -333,16 +331,17 @@ func (h *Hook) projectCreated(project NexusProjectInterface) error {
 
 	var action string
 
-	if watcherObj.Spec.StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.Spec.Message == "Created" {
+	if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.GetSpec().Message == "Created" {
 		// This is a rerun of an event we already processed - check for update
 		log.Infof("Watch %s for project %s already provisioned", watcherObj.DisplayName(), project.DisplayName())
-		log.Debugf("existing watcher annotations are: %+v", watcherObj.Annotations)
-		if watcherObj.Annotations[ManifestTagAnnotationKey] == h.dispatcher.ManifestTag() {
+		log.Debugf("existing watcher annotations are: %+v", watcherObj.GetAnnotations())
+        annotations := watcherObj.GetAnnotations()
+		if annotations[ManifestTagAnnotationKey] == h.dispatcher.ManifestTag() {
 			// Manifest tag is correct
 			log.Infof("Manifest tag is correct, no need to update")
-			return
+			return nil
 		}
-		log.Infof("Manifest tag is not correct, updating. Have %s, want %s", watcherObj.Annotations[ManifestTagAnnotationKey], h.dispatcher.ManifestTag())
+		log.Infof("Manifest tag is not correct, updating. Have %s, want %s", annotations[ManifestTagAnnotationKey], h.dispatcher.ManifestTag())
 		action = "update"
 	} else {
 		action = "created"
