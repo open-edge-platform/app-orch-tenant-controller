@@ -32,8 +32,8 @@ type NexusFolderInterface interface { // nolint:revive
 type NexusProjectActiveWatcherInterface interface { // nolint:revive
 	Update(ctx context.Context) error
 	GetSpec() *projectActiveWatcherv1.ProjectActiveWatcherSpec
-    GetAnnotations() map[string]string
-    SetAnnotations(annotations map[string]string)
+	GetAnnotations() map[string]string
+	SetAnnotations(annotations map[string]string)
 	DisplayName() string
 }
 
@@ -68,11 +68,11 @@ func (w *NexusProjectActiveWatcher) GetSpec() *projectActiveWatcherv1.ProjectAct
 }
 
 func (w *NexusProjectActiveWatcher) GetAnnotations() map[string]string {
-	return w.GetAnnotations()
+	return w.Annotations
 }
 
 func (w *NexusProjectActiveWatcher) SetAnnotations(annotations map[string]string) {
-	w.SetAnnotations(annotations)
+	w.Annotations = annotations
 }
 
 func (w *NexusProjectActiveWatcher) DisplayName() string {
