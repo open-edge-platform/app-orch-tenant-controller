@@ -30,6 +30,10 @@ func (m *MockProjectManager) DeleteProject(orgName string, projectName string, p
 	m.deleted = append(m.deleted, projectName)
 }
 
+func (m *MockProjectManager) ManifestTag() string {
+	return ""
+}
+
 type NexusHookTestSuite struct {
 	suite.Suite
 }

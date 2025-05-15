@@ -316,18 +316,17 @@ func (h *Hook) projectCreated(project NexusProjectInterface) error {
 			TimeStamp:       h.safeUnixTime(),
 		},
 	})
-	
 
 	if err != nil {
 		log.Errorf("Failed to create ProjectActiveWatcher object with an error: %v", err)
 		return err
 	}
 
-    if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.GetSpec().Message == "Created" {
+	if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.GetSpec().Message == "Created" {
 		// This is a rerun of an event we already processed - no more processing required
 		log.Infof("Watch %s for project %s already provisioned", watcherObj.DisplayName(), project.DisplayName())
 		return nil
-    }
+	}
 
 	var action string
 
@@ -335,7 +334,7 @@ func (h *Hook) projectCreated(project NexusProjectInterface) error {
 		// This is a rerun of an event we already processed - check for update
 		log.Infof("Watch %s for project %s already provisioned", watcherObj.DisplayName(), project.DisplayName())
 		log.Debugf("existing watcher annotations are: %+v", watcherObj.GetAnnotations())
-        annotations := watcherObj.GetAnnotations()
+		annotations := watcherObj.GetAnnotations()
 		if annotations[ManifestTagAnnotationKey] == h.dispatcher.ManifestTag() {
 			// Manifest tag is correct
 			log.Infof("Manifest tag is correct, no need to update")
