@@ -81,7 +81,7 @@ func (s *AppDeploymentTestSuite) TestAppDeployment() {
 	ADM, err := newADM(config.Configuration{AdmServer: ""})
 	s.NoError(err)
 
-	err = ADM.ListDeployments(s.ctx)
+	_, err = ADM.ListDeploymentNames(s.ctx, "")
 	s.NoError(err)
 
 	labels1 := map[string]string{
