@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+var log = dazl.GetPackageLogger()
+
 const (
 	appName = "config-provisioner"
 
@@ -28,13 +30,14 @@ const (
 	MaxOrganizationNameLength = 63 // Same limit as used in tenant data model
 	MaxProjectNameLength      = 63 // Same limit as used in tenant data model
 	MaxProjectUUIDLength      = 36
+	// manifest tag annotation key
+	ManifestTagAnnotationKey = "app-orch-tenant-controller/manifest-tag"
 )
-
-var log = dazl.GetPackageLogger()
 
 type ProjectManager interface {
 	CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface)
 	DeleteProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface)
+	ManifestTag() string
 }
 
 type Hook struct {
@@ -86,6 +89,7 @@ func (h *Hook) Subscribe() error {
 		return err
 	}
 	log.Info("Nexus hook successfully subscribed")
+
 	return nil
 }
 
@@ -173,6 +177,22 @@ func (h *Hook) SetWatcherStatusInProgress(proj NexusProjectInterface, message st
 			return setStatusErr
 		}
 		return nil
+	}
+	return err
+}
+
+func (h *Hook) UpdateProjectManifestTag(proj NexusProjectInterface) error {
+	log.Infof("Setting watcher manifest tag for project %s to %s", proj.DisplayName(), h.dispatcher.ManifestTag())
+	watcherObj, err := proj.GetActiveWatchers(context.Background(), appName)
+	if err != nil {
+		return err
+	}
+	if watcherObj != nil {
+		log.Debug("Setting watcher annotations")
+		annotations := make(map[string]string)
+		annotations[ManifestTagAnnotationKey] = h.dispatcher.ManifestTag()
+		watcherObj.SetAnnotations(annotations)
+		return watcherObj.Update(context.Background())
 	}
 	return err
 }
@@ -296,14 +316,32 @@ func (h *Hook) projectCreated(project NexusProjectInterface) error {
 			TimeStamp:       h.safeUnixTime(),
 		},
 	})
+
+	if err != nil {
+		log.Errorf("Failed to create ProjectActiveWatcher object with an error: %v", err)
+		return err
+	}
+
+	var action string
+
 	if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.GetSpec().Message == "Created" {
-		// This is a rerun of an event we already processed - no more processing required
+		// This is a rerun of an event we already processed - check for update
 		log.Infof("Watch %s for project %s already provisioned", watcherObj.DisplayName(), project.DisplayName())
-		return nil
+		log.Debugf("existing watcher annotations are: %+v", watcherObj.GetAnnotations())
+		annotations := watcherObj.GetAnnotations()
+		if annotations[ManifestTagAnnotationKey] == h.dispatcher.ManifestTag() {
+			// Manifest tag is correct
+			log.Infof("Manifest tag is correct, no need to update")
+			return nil
+		}
+		log.Infof("Manifest tag is not correct, updating. Have %s, want %s", annotations[ManifestTagAnnotationKey], h.dispatcher.ManifestTag())
+		action = "update"
+	} else {
+		action = "created"
 	}
 
 	if nexus.IsAlreadyExists(err) {
-		log.Warnf("Watch %s already exists for project %s", watcherObj.DisplayName(), project.DisplayName())
+		log.Infof("Watch %s already exists for project %s", watcherObj.DisplayName(), project.DisplayName())
 	} else if err != nil {
 		// NOTE: This will permantently fail project creation -- there is no recovery if we cannot create the watcher.
 		return fmt.Errorf("Error %+v while creating watch %s for project %s", err, appName, project.DisplayName())
@@ -318,7 +356,7 @@ func (h *Hook) projectCreated(project NexusProjectInterface) error {
 	}
 	h.dispatcher.CreateProject(organizationName, project.DisplayName(), project.GetUID(), project)
 
-	log.Infof("Active watcher %s created for Project %s", watcherObj.DisplayName(), project.DisplayName())
+	log.Infof("Active watcher %s %s created for Project %s", watcherObj.DisplayName(), action, project.DisplayName())
 
 	return nil
 }

@@ -73,6 +73,14 @@ func Dispatch(ctx context.Context, event Event, hook *nexushook.Hook) error {
 		}
 	}
 	log.Infof("Done dispatching event: %v", event)
+	if event.EventType == "create" {
+		if hook != nil {
+			err = hook.UpdateProjectManifestTag(event.Project)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
