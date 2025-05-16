@@ -232,8 +232,9 @@ func newTestADM(_ config.Configuration) (AppDeployment, error) {
 	return mockADM, nil
 }
 
-func (t *testADM) ListDeployments(_ context.Context) error {
-	return nil
+func (t *testADM) ListDeploymentNames(_ context.Context, _ string) (map[string]string, error) {
+	displayName := make(map[string]string)
+	return displayName, nil
 }
 
 type mockDeployment struct {

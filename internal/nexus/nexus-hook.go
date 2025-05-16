@@ -322,12 +322,6 @@ func (h *Hook) projectCreated(project NexusProjectInterface) error {
 		return err
 	}
 
-	if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.GetSpec().Message == "Created" {
-		// This is a rerun of an event we already processed - no more processing required
-		log.Infof("Watch %s for project %s already provisioned", watcherObj.DisplayName(), project.DisplayName())
-		return nil
-	}
-
 	var action string
 
 	if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.GetSpec().Message == "Created" {
