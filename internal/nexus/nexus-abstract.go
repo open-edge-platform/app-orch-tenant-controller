@@ -68,11 +68,11 @@ func (w *NexusProjectActiveWatcher) GetSpec() *projectActiveWatcherv1.ProjectAct
 }
 
 func (w *NexusProjectActiveWatcher) GetAnnotations() map[string]string {
-	return w.Annotations
+	return (*nexus.ProjectactivewatcherProjectActiveWatcher)(w).GetAnnotations()
 }
 
 func (w *NexusProjectActiveWatcher) SetAnnotations(annotations map[string]string) {
-	w.Annotations = annotations
+	(*nexus.ProjectactivewatcherProjectActiveWatcher)(w).SetAnnotations(annotations)
 }
 
 func (w *NexusProjectActiveWatcher) DisplayName() string {
