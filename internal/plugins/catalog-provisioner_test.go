@@ -46,8 +46,9 @@ func (s *PluginsTestSuite) TestCatalogProvisionerPluginCreate() {
 	s.NoError(err, "Cannot initialize plugins")
 
 	err = Dispatch(ctx, Event{
-		EventType: "create",
-		UUID:      "default",
+		EventType:    "create",
+		UUID:         "default",
+		Organization: "test-org",
 	}, nil)
 	s.NoError(err, "Cannot dispatch create event")
 
@@ -62,6 +63,8 @@ func (s *PluginsTestSuite) TestCatalogProvisionerPluginCreate() {
 	s.Equal("token", mockCatalog.registries["harbor-helm-oci"].AuthToken)
 	s.Equal("user", mockCatalog.registries["harbor-docker-oci"].Username)
 	s.Equal("user", mockCatalog.registries["harbor-helm-oci"].Username)
+	s.Equal("/catalog-apps-test-org-", mockCatalog.registries["harbor-docker-oci"].RootURL)
+	s.Equal("/catalog-apps-test-org-", mockCatalog.registries["harbor-helm-oci"].RootURL)
 	s.Equal("use-dynamic-cacert", mockCatalog.registries["harbor-docker-oci"].Cacerts)
 	s.Equal("use-dynamic-cacert", mockCatalog.registries["harbor-helm-oci"].Cacerts)
 

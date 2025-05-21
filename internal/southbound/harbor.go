@@ -41,11 +41,6 @@ func NewK8s(namespace string) (K8s, error) {
 var K8sFactory = NewK8s
 
 func HarborProjectName(org string, displayName string) string {
-	// Begin hack - Remove this once the integration pipeline can handle Harbor projects named after the projectID
-	if displayName == "default" && org == "" {
-		return "catalog-apps"
-	}
-	// End hack
 	return fmt.Sprintf(`catalog-apps-%s-%s`, org, displayName)
 }
 
