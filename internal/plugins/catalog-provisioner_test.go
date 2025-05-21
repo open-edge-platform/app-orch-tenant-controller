@@ -46,10 +46,9 @@ func (s *PluginsTestSuite) TestCatalogProvisionerPluginCreate() {
 	s.NoError(err, "Cannot initialize plugins")
 
 	err = Dispatch(ctx, Event{
-		EventType: "create",
-		UUID:      "default",
+		EventType:    "create",
+		UUID:         "default",
 		Organization: "test-org",
-
 	}, nil)
 	s.NoError(err, "Cannot dispatch create event")
 
