@@ -37,7 +37,7 @@ type Manifest struct {
 }
 
 type AppDeployment interface {
-	ListDeployments(ctx context.Context) error
+	ListDeploymentNames(ctx context.Context, projectID string) (map[string]string, error)
 	CreateDeployment(ctx context.Context, dpName string, displayName string, version string, profileName string, projectID string, labels map[string]string) error
 }
 
@@ -87,7 +87,7 @@ func (p *ExtensionsProvisionerPlugin) waitForADM(ctx context.Context) {
 		var cancel context.CancelFunc
 		var lctx context.Context
 		lctx, cancel = context.WithTimeout(ctx, 10*time.Second)
-		err := ad.ListDeployments(lctx)
+		_, err := ad.ListDeploymentNames(lctx, "")
 		cancel()
 		if err == nil || strings.Contains(err.Error(), "Unauthenticated") {
 			break
@@ -176,7 +176,20 @@ func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Eve
 	} else {
 		uuid := event.UUID
 		ad, _ := AppDeploymentFactory(p.configuration)
+
+		existingDisplayNames, err := ad.ListDeploymentNames(ctx, uuid)
+		if err != nil {
+			log.Info("Not able to list deployments, skipping deployments")
+			return err
+		}
+
 		for _, dl := range manifest.Lpke.DeploymentList {
+			log.Infof("displayName: %s", dl.DisplayName)
+			if _, exists := existingDisplayNames[dl.DisplayName]; exists {
+				log.Infof("Deployment with displayName %s already exists, skipping creation", dl.DisplayName)
+				continue
+			}
+
 			labels := map[string]string{}
 			for _, appTargetCluster := range dl.AllAppTargetClusters {
 				labels[appTargetCluster.Key] = appTargetCluster.Val

@@ -54,7 +54,7 @@ configProvisioner:
   releaseServiceRootUrl: "oci://registry-rs.edgeorchestration.intel.com"
   releaseServiceProxyRootUrl: "oci://rs-proxy.rs-proxy.svc.cluster.local:8443"
   manifestPath: "/edge-orch/en/file/cluster-extension-manifest"
-  manifestTag: "v1.0.36"
+  manifestTag: "v1.1.2"
 
   httpProxy: ""
   httpsProxy: ""

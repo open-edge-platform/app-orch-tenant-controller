@@ -191,6 +191,10 @@ func (m *Manager) Close() {
 	close(m.eventChan)
 }
 
+func (m *Manager) ManifestTag() string {
+	return m.Config.ManifestTag
+}
+
 // HealthCheck is a struct receiver implementing onos northbound Register interface.
 type HealthCheck struct{}
 

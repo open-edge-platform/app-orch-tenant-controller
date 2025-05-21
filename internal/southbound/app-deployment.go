@@ -59,13 +59,25 @@ func newADM(configuration config.Configuration) (*AppDeployment, error) {
 	return ad, nil
 }
 
-func (a *AppDeployment) ListDeployments(ctx context.Context) error {
-	ctx, err := getCtxForProjectID(ctx, "", a.configuration)
+func (a *AppDeployment) ListDeploymentNames(ctx context.Context, projectID string) (map[string]string, error) {
+	ctx, err := getCtxForProjectID(ctx, projectID, a.configuration)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, err = a.admClient.ListDeployments(ctx, &adm.ListDeploymentsRequest{})
-	return err
+	admResp, err := a.admClient.ListDeployments(ctx, &adm.ListDeploymentsRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	existingDeployments := admResp.GetDeployments()
+	existingDisplayNames := make(map[string]string)
+	for _, dep := range existingDeployments {
+		log.Infof("displayName : %s", dep.DisplayName)
+		existingDisplayNames[dep.DisplayName] = dep.DisplayName
+	}
+
+	log.Infof("display name list size : %d", len(existingDisplayNames))
+	return existingDisplayNames, nil
 }
 
 func (a *AppDeployment) CreateDeployment(ctx context.Context,
