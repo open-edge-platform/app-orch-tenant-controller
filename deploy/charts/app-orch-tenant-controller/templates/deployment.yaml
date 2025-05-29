@@ -61,18 +61,6 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
         env:
-        {{- with .Values.configProvisioner.http_proxy }}
-        - name: HTTP_PROXY
-          value: {{ . }}
-        {{- end }}
-        {{- with .Values.configProvisioner.https_proxy }}
-        - name: HTTPS_PROXY
-          value: {{ . }}
-        {{- end }}
-        {{- with .Values.configProvisioner.no_proxy }}
-        - name: NO_PROXY
-          value: {{ . }}
-        {{- end }}
         # When true, the provisioner uses the M2M token to access cluster services. Set this for production deployments
         - name: USE_M2M_TOKEN
           value: {{  .Values.configProvisioner.useM2MToken | quote }}
