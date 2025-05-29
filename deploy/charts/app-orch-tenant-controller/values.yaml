@@ -56,6 +56,7 @@ configProvisioner:
   manifestPath: "/edge-orch/en/file/cluster-extension-manifest"
   manifestTag: "v1.1.2"
 
+  # optional proxy settings
   httpProxy: ""
   httpsProxy: ""
   noProxy: ""
@@ -90,11 +91,6 @@ resources:
 
 # Optional additional annotations to add to the controller Deployment
 # deploymentAnnotations: {}
-
-# Use these variables to configure the HTTP_PROXY environment variables
-# http_proxy: "http://proxy:8080"
-# https_proxy: "https://proxy:8080"
-# no_proxy: 127.0.0.1,localhost
 
 logging:
   encoders:
