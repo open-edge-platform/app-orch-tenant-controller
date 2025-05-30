@@ -25,6 +25,8 @@ permissions: {}
 
 jobs:
   go-fuzz-tenant-controller:
+    permissions:
+      contents: read
     if: ${{ inputs.run_tenant_controller || github.event_name == 'schedule' }}
     name: Tenant Controller Go Fuzzing Tests
     uses: open-edge-platform/orch-ci/.github/workflows/apporch-go-fuzz.yml@fix_fuzz
