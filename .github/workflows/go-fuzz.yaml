@@ -21,14 +21,15 @@ on:
   schedule:
     - cron: "0 0 * * 6"   # every week, at 00:00 on Saturday
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   go-fuzz-tenant-controller:
+    permissions:
+      contents: read
     if: ${{ inputs.run_tenant_controller || github.event_name == 'schedule' }}
     name: Tenant Controller Go Fuzzing Tests
-    uses: open-edge-platform/orch-ci/.github/workflows/apporch-go-fuzz.yml@4c94cdd01e58beab5f822f1eeb0439a523018a55 # v0.1.5
+    uses: open-edge-platform/orch-ci/.github/workflows/apporch-go-fuzz.yml@69af6d89005b367c332671121e3481766de8e147  # 0.1.16
     with:
       # Declare 4800 secs duration since schedule event will not pick up input values from workflow_dispatch
       fuzz_seconds: ${{ fromJSON(inputs.fuzz_seconds_tenant_controller || 4800) }}
