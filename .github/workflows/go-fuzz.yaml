@@ -29,7 +29,7 @@ jobs:
       contents: read
     if: ${{ inputs.run_tenant_controller || github.event_name == 'schedule' }}
     name: Tenant Controller Go Fuzzing Tests
-    uses: open-edge-platform/orch-ci/.github/workflows/apporch-go-fuzz.yml@69af6d89005b367c332671121e3481766de8e147  # 0.1.16
+    uses: open-edge-platform/orch-ci/.github/workflows/apporch-go-fuzz.yml@31624c09a11515551519a32de36ed9ffa28ae8fb  # 0.1.23
     with:
       # Declare 4800 secs duration since schedule event will not pick up input values from workflow_dispatch
       fuzz_seconds: ${{ fromJSON(inputs.fuzz_seconds_tenant_controller || 4800) }}
