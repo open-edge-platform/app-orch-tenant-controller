@@ -251,7 +251,7 @@ func addAccess(resource string, actions []string, permissions *RobotPermissions)
 	}
 }
 
-func (h *HarborOCI) CreateRobot(ctx context.Context, robotName string, org string, displayName string) (string, string, error) {
+func (h *HarborOCI) CreateRobot(ctx context.Context, robotName string, org string, displayName string) (string, string, int, error) {
 	repositoryActions := []string{"list", "pull", "push", "delete"}
 	artifactActions := []string{"read", "list", "delete"}
 	artifactLabelActions := []string{"create", "delete"}
@@ -277,26 +277,26 @@ func (h *HarborOCI) CreateRobot(ctx context.Context, robotName string, org strin
 
 	robotBody, err := json.Marshal(robotAttrs)
 	if err != nil {
-		return "", "", err
+		return "", "", 0, err
 	}
 
 	resp, err := h.doHarborREST(ctx, http.MethodPost, URL, bytes.NewReader(robotBody), AddHeaders)
 	if err != nil {
-		return "", "", err
+		return "", "", 0, err
 	}
 	createRobotResponseBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusCreated {
 		responseBody, _ := io.ReadAll(resp.Body)
 		responseJSON := string(responseBody)
-		return "", "", fmt.Errorf("%s", responseJSON)
+		return "", "", resp.StatusCode, fmt.Errorf("%s", responseJSON)
 	}
 	createRobotResponse := &CreateRobotResponse{}
 	err = json.Unmarshal(createRobotResponseBody, createRobotResponse)
 	if err != nil {
-		return "", "", err
+		return "", "", resp.StatusCode, err
 	}
 
-	return createRobotResponse.Name, createRobotResponse.Secret, err
+	return createRobotResponse.Name, createRobotResponse.Secret, resp.StatusCode, err
 }
 
 type HarborRobot struct {

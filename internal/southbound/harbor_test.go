@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/suite"
 )
 
 // Suite of harbor southbound tests
@@ -273,7 +274,7 @@ func (s *HarborTestSuite) TestHarborCreateRobot() {
 	h, err := newHarbor(s.ctx, s.testServer.Server.URL, "OIDC", "harbor", "credential")
 	s.NoError(err)
 
-	name, secret, err := h.CreateRobot(s.ctx, "new-robot", "org", "new-project")
+	name, secret, _, err := h.CreateRobot(s.ctx, "new-robot", "org", "new-project")
 	s.NoError(err)
 	s.Equal("robot$catalog-apps-org-new-project+new-robot", name)
 	s.Equal("super-sekret-shhh", secret)

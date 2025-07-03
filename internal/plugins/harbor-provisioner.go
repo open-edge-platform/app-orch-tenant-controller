@@ -6,16 +6,18 @@ package plugins
 import (
 	"context"
 	"fmt"
-	"github.com/open-edge-platform/app-orch-tenant-controller/internal/southbound"
+	"net/http"
 	"strings"
 	"time"
+
+	"github.com/open-edge-platform/app-orch-tenant-controller/internal/southbound"
 )
 
 type Harbor interface {
 	Configurations(ctx context.Context) error
 	CreateProject(ctx context.Context, org string, displayName string) error
 	SetMemberPermissions(ctx context.Context, roleID int, org string, displayName string, groupName string) error
-	CreateRobot(ctx context.Context, robotName string, org string, displayName string) (string, string, error)
+	CreateRobot(ctx context.Context, robotName string, org string, displayName string) (string, string, int, error)
 	GetRobot(ctx context.Context, org string, displayName string, robotName string) (*southbound.HarborRobot, error)
 	DeleteRobot(ctx context.Context, org string, displayName string, robotID int) error
 	DeleteProject(ctx context.Context, org string, displayName string) error
@@ -98,8 +100,11 @@ func (p *HarborProvisionerPlugin) CreateEvent(ctx context.Context, event Event, 
 		return err
 	}
 
+	/* Leaving this check in because it was known to work for older harbor versions.
+	 * On the current Harbot version it is returning a 404 because the /projects/{project_name}/robots endpoint does not exist.
+	 * TODO: Delete this code when appropriate.
+	 */
 	robot, _ := p.harbor.GetRobot(ctx, org, name, "catalog-apps-read-write")
-
 	if robot != nil {
 		err = p.harbor.DeleteRobot(ctx, org, name, robot.ID)
 		if err != nil {
@@ -107,10 +112,23 @@ func (p *HarborProvisionerPlugin) CreateEvent(ctx context.Context, event Event, 
 		}
 	}
 
-	name, secret, err := p.harbor.CreateRobot(ctx, `catalog-apps-read-write`, org, name)
-	if err != nil {
+	var secret string
+	var statusCode int
+	name, secret, statusCode, err = p.harbor.CreateRobot(ctx, `catalog-apps-read-write`, org, name)
+	if err != nil && statusCode == http.StatusConflict {
+		log.Info("Robot already exists, trying to delete and recreate")
+		err = p.harbor.DeleteRobot(ctx, org, name, robot.ID)
+		if err != nil {
+			return err
+		}
+		name, secret, statusCode, err = p.harbor.CreateRobot(ctx, `catalog-apps-read-write`, org, name)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
 		return err
 	}
+
 	(*pluginData)[HarborUsernameName] = name
 	(*pluginData)[HarborTokenName] = secret
 

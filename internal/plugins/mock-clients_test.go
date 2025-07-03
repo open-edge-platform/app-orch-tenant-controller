@@ -6,11 +6,12 @@ package plugins
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/southbound"
 	"oras.land/oras-go/v2/content/file"
-	"os"
-	"path/filepath"
 )
 
 // Catalog client mock
@@ -184,7 +185,7 @@ func (t *testHarbor) Ping(_ context.Context) error {
 
 var nextRobotID = 1
 
-func (t *testHarbor) CreateRobot(_ context.Context, robotName string, org string, displayName string) (string, string, error) {
+func (t *testHarbor) CreateRobot(_ context.Context, robotName string, org string, displayName string) (string, string, int, error) {
 	// robot$catalog-apps-coke-proj1+catalog-apps-read-write
 	robotName = fmt.Sprintf("robot$catalog-apps-%s-%s+%s", org, displayName, robotName)
 	t.robots[robotName] = robot{
@@ -193,7 +194,7 @@ func (t *testHarbor) CreateRobot(_ context.Context, robotName string, org string
 		robotID:     nextRobotID,
 	}
 	nextRobotID++
-	return "name", "secret", nil
+	return "name", "secret", 0, nil
 }
 
 func (t *testHarbor) GetRobot(_ context.Context, _ string, _ string, robotName string) (*southbound.HarborRobot, error) {
