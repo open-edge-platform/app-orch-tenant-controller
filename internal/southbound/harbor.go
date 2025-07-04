@@ -376,7 +376,9 @@ func (h *HarborOCI) GetRobot(ctx context.Context, org string, displayName string
 }
 
 func (h *HarborOCI) DeleteRobot(ctx context.Context, org string, displayName string, robotID int) error {
-	URL := fmt.Sprintf("%s/api/v2.0/projects/%s/robots/%d", h.harborHost, HarborProjectName(org, displayName), robotID)
+	_ = org
+	_ = displayName
+	URL := fmt.Sprintf("%s/api/v2.0/robots/%d", h.harborHost, robotID)
 	resp, err := h.doHarborREST(ctx, http.MethodDelete, URL, nil, AddHeaders)
 	if err != nil {
 		return err
