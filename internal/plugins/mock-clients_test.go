@@ -183,9 +183,13 @@ func (t *testHarbor) Ping(_ context.Context) error {
 	return nil
 }
 
+func (t *testHarbor) GetProjectID(_ context.Context, _ string, _ string) (int, error) {
+	return 0, nil
+}
+
 var nextRobotID = 1
 
-func (t *testHarbor) CreateRobot(_ context.Context, robotName string, org string, displayName string) (string, string, int, error) {
+func (t *testHarbor) CreateRobot(_ context.Context, robotName string, org string, displayName string) (string, string, error) {
 	// robot$catalog-apps-coke-proj1+catalog-apps-read-write
 	robotName = fmt.Sprintf("robot$catalog-apps-%s-%s+%s", org, displayName, robotName)
 	t.robots[robotName] = robot{
@@ -194,10 +198,11 @@ func (t *testHarbor) CreateRobot(_ context.Context, robotName string, org string
 		robotID:     nextRobotID,
 	}
 	nextRobotID++
-	return "name", "secret", 0, nil
+	return "name", "secret", nil
 }
 
-func (t *testHarbor) GetRobot(_ context.Context, _ string, _ string, robotName string) (*southbound.HarborRobot, error) {
+func (t *testHarbor) GetRobot(_ context.Context, _ string, _ string, robotName string, projectID int) (*southbound.HarborRobot, error) {
+	_ = projectID // TODO: fix up mock to include projectID
 	r, ok := t.robots[robotName]
 	if !ok {
 		return nil, fmt.Errorf("robot %s not found", robotName)

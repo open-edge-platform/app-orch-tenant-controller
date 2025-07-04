@@ -133,6 +133,10 @@ func projectHandler(w http.ResponseWriter, r *http.Request) {
 	} else if r.Method == http.MethodDelete &&
 		strings.Contains(r.URL.Path, `catalog-apps-org-new-project`) {
 		w.WriteHeader(http.StatusOK)
+	} else if r.Method == http.MethodGet {
+		w.WriteHeader(http.StatusOK)
+		projectResults := HarborProject{ProjectID: 0}
+		_ = json.NewEncoder(w).Encode(projectResults)
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
@@ -274,7 +278,7 @@ func (s *HarborTestSuite) TestHarborCreateRobot() {
 	h, err := newHarbor(s.ctx, s.testServer.Server.URL, "OIDC", "harbor", "credential")
 	s.NoError(err)
 
-	name, secret, _, err := h.CreateRobot(s.ctx, "new-robot", "org", "new-project")
+	name, secret, err := h.CreateRobot(s.ctx, "new-robot", "org", "new-project")
 	s.NoError(err)
 	s.Equal("robot$catalog-apps-org-new-project+new-robot", name)
 	s.Equal("super-sekret-shhh", secret)
@@ -282,7 +286,10 @@ func (s *HarborTestSuite) TestHarborCreateRobot() {
 	s.Len(mockRobots, 1)
 	s.Equal(mockRobots[name].Name, name)
 
-	robot, err := h.GetRobot(s.ctx, "org", "new-project", "new-robot")
+	projectID, err := h.GetProjectID(s.ctx, "org", "new-project")
+	s.NoError(err)
+
+	robot, err := h.GetRobot(s.ctx, "org", "new-project", "new-robot", projectID)
 	s.NoError(err)
 	s.NotNil(robot)
 	s.Equal("robot$catalog-apps-org-new-project+new-robot", robot.Name)
@@ -291,7 +298,7 @@ func (s *HarborTestSuite) TestHarborCreateRobot() {
 	s.NoError(err)
 	s.Len(mockRobots, 0)
 
-	robot, err = h.GetRobot(s.ctx, "org", "new-project", "new-robot")
+	robot, err = h.GetRobot(s.ctx, "org", "new-project", "new-robot", projectID)
 	s.Error(err)
 	s.Nil(robot)
 }
