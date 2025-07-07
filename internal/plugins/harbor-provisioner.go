@@ -19,7 +19,7 @@ type Harbor interface {
 	CreateRobot(ctx context.Context, robotName string, org string, displayName string) (string, string, error)
 	GetProjectID(ctx context.Context, org string, displayName string) (int, error)
 	GetRobot(ctx context.Context, org string, displayName string, robotName string, projectID int) (*southbound.HarborRobot, error)
-	DeleteRobot(ctx context.Context, org string, displayName string, robotID int) error
+	DeleteRobot(ctx context.Context, robotID int) error
 	DeleteProject(ctx context.Context, org string, displayName string) error
 	Ping(ctx context.Context) error
 }
@@ -107,7 +107,7 @@ func (p *HarborProvisionerPlugin) CreateEvent(ctx context.Context, event Event, 
 
 	robot, _ := p.harbor.GetRobot(ctx, org, name, "catalog-apps-read-write", projectID)
 	if robot != nil {
-		err = p.harbor.DeleteRobot(ctx, org, name, robot.ID)
+		err = p.harbor.DeleteRobot(ctx, robot.ID)
 		if err != nil {
 			return err
 		}

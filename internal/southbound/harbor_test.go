@@ -294,7 +294,7 @@ func (s *HarborTestSuite) TestHarborCreateRobot() {
 	s.NotNil(robot)
 	s.Equal("robot$catalog-apps-org-new-project+new-robot", robot.Name)
 
-	err = h.DeleteRobot(s.ctx, "org", "new-project", robot.ID)
+	err = h.DeleteRobot(s.ctx, robot.ID)
 	s.NoError(err)
 	s.Len(mockRobots, 0)
 

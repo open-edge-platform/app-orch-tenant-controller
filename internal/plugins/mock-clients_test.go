@@ -210,7 +210,7 @@ func (t *testHarbor) GetRobot(_ context.Context, _ string, _ string, robotName s
 	return &southbound.HarborRobot{Name: r.robotName, ID: r.robotID}, nil
 }
 
-func (t *testHarbor) DeleteRobot(_ context.Context, _ string, _ string, robotID int) error {
+func (t *testHarbor) DeleteRobot(_ context.Context, robotID int) error {
 	for _, r := range t.robots {
 		if r.robotID == robotID {
 			delete(t.robots, r.robotName)
