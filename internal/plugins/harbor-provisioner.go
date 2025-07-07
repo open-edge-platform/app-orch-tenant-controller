@@ -6,9 +6,10 @@ package plugins
 import (
 	"context"
 	"fmt"
-	"github.com/open-edge-platform/app-orch-tenant-controller/internal/southbound"
 	"strings"
 	"time"
+
+	"github.com/open-edge-platform/app-orch-tenant-controller/internal/southbound"
 )
 
 type Harbor interface {
@@ -16,8 +17,9 @@ type Harbor interface {
 	CreateProject(ctx context.Context, org string, displayName string) error
 	SetMemberPermissions(ctx context.Context, roleID int, org string, displayName string, groupName string) error
 	CreateRobot(ctx context.Context, robotName string, org string, displayName string) (string, string, error)
-	GetRobot(ctx context.Context, org string, displayName string, robotName string) (*southbound.HarborRobot, error)
-	DeleteRobot(ctx context.Context, org string, displayName string, robotID int) error
+	GetProjectID(ctx context.Context, org string, displayName string) (int, error)
+	GetRobot(ctx context.Context, org string, displayName string, robotName string, projectID int) (*southbound.HarborRobot, error)
+	DeleteRobot(ctx context.Context, robotID int) error
 	DeleteProject(ctx context.Context, org string, displayName string) error
 	Ping(ctx context.Context) error
 }
@@ -98,10 +100,14 @@ func (p *HarborProvisionerPlugin) CreateEvent(ctx context.Context, event Event, 
 		return err
 	}
 
-	robot, _ := p.harbor.GetRobot(ctx, org, name, "catalog-apps-read-write")
+	projectID, err := p.harbor.GetProjectID(ctx, org, name)
+	if err != nil {
+		return err
+	}
 
+	robot, _ := p.harbor.GetRobot(ctx, org, name, "catalog-apps-read-write", projectID)
 	if robot != nil {
-		err = p.harbor.DeleteRobot(ctx, org, name, robot.ID)
+		err = p.harbor.DeleteRobot(ctx, robot.ID)
 		if err != nil {
 			return err
 		}
@@ -111,6 +117,7 @@ func (p *HarborProvisionerPlugin) CreateEvent(ctx context.Context, event Event, 
 	if err != nil {
 		return err
 	}
+
 	(*pluginData)[HarborUsernameName] = name
 	(*pluginData)[HarborTokenName] = secret
 

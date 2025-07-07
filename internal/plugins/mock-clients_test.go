@@ -6,11 +6,16 @@ package plugins
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/southbound"
 	"oras.land/oras-go/v2/content/file"
-	"os"
-	"path/filepath"
+)
+
+const (
+	HarborProjectID = 1234 // Mock project ID for testing
 )
 
 // Catalog client mock
@@ -182,6 +187,10 @@ func (t *testHarbor) Ping(_ context.Context) error {
 	return nil
 }
 
+func (t *testHarbor) GetProjectID(_ context.Context, _ string, _ string) (int, error) {
+	return HarborProjectID, nil
+}
+
 var nextRobotID = 1
 
 func (t *testHarbor) CreateRobot(_ context.Context, robotName string, org string, displayName string) (string, string, error) {
@@ -196,7 +205,10 @@ func (t *testHarbor) CreateRobot(_ context.Context, robotName string, org string
 	return "name", "secret", nil
 }
 
-func (t *testHarbor) GetRobot(_ context.Context, _ string, _ string, robotName string) (*southbound.HarborRobot, error) {
+func (t *testHarbor) GetRobot(_ context.Context, _ string, _ string, robotName string, projectID int) (*southbound.HarborRobot, error) {
+	if projectID != HarborProjectID {
+		return nil, fmt.Errorf("robot %s projectID %d not found", robotName, projectID)
+	}
 	r, ok := t.robots[robotName]
 	if !ok {
 		return nil, fmt.Errorf("robot %s not found", robotName)
@@ -204,7 +216,7 @@ func (t *testHarbor) GetRobot(_ context.Context, _ string, _ string, robotName s
 	return &southbound.HarborRobot{Name: r.robotName, ID: r.robotID}, nil
 }
 
-func (t *testHarbor) DeleteRobot(_ context.Context, _ string, _ string, robotID int) error {
+func (t *testHarbor) DeleteRobot(_ context.Context, robotID int) error {
 	for _, r := range t.robots {
 		if r.robotID == robotID {
 			delete(t.robots, r.robotName)
