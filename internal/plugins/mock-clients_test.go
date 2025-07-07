@@ -14,6 +14,10 @@ import (
 	"oras.land/oras-go/v2/content/file"
 )
 
+const (
+	HarborProjectID = 1234 // Mock project ID for testing
+)
+
 // Catalog client mock
 type upload struct {
 	path       string
@@ -184,7 +188,7 @@ func (t *testHarbor) Ping(_ context.Context) error {
 }
 
 func (t *testHarbor) GetProjectID(_ context.Context, _ string, _ string) (int, error) {
-	return 0, nil
+	return HarborProjectID, nil
 }
 
 var nextRobotID = 1
@@ -202,7 +206,9 @@ func (t *testHarbor) CreateRobot(_ context.Context, robotName string, org string
 }
 
 func (t *testHarbor) GetRobot(_ context.Context, _ string, _ string, robotName string, projectID int) (*southbound.HarborRobot, error) {
-	_ = projectID // TODO: fix up mock to include projectID
+	if projectID != HarborProjectID {
+		return nil, fmt.Errorf("robot %s projectID %d not found", robotName, projectID)
+	}
 	r, ok := t.robots[robotName]
 	if !ok {
 		return nil, fmt.Errorf("robot %s not found", robotName)
