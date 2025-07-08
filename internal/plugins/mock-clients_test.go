@@ -83,17 +83,17 @@ func NewTestOras(_ string) (Oras, error) {
 
 var paths = map[string]string{
 	"/registry/edge-node/en/manifest:latest":       "24.11.0.yaml",
-	"/registry/edge-node/dp/intel-gpu:1.0.2":       "intel-gpu:1.0.2.yaml",
-	"/registry/edge-node/dp/loadbalancer:0.1.0":    "loadbalancer:0.1.0.yaml",
-	"/registry/edge-node/dp/sriov:0.1.4":           "sriov:0.1.4.yaml",
-	"/registry/edge-node/dp/usb:0.1.0":             "usb:0.1.0.yaml",
-	"/registry/edge-node/dp/virtualization:0.2.4":  "virtualization:0.2.4.yaml",
-	"/registry/edge-node/tmpl/privileged:1.3.4":    "privileged:1.3.4.json",
-	"/registry/edge-node/tmpl/restricted:1.3.4":    "restricted:1.3.4.json",
-	"/registry/edge-node/tmpl/baseline:1.3.4":      "baseline:1.3.4.json",
-	"/registry/edge-node/dp/base-extensions:0.2.0": "base-extensions:0.2.0.yaml",
-	"/registry/edge-node/dp/loadbalancer:0.2.6":    "loadbalancer:0.2.6.yaml",
-	"/registry/edge-node/dp/skupper:0.1.4":         "skupper:0.1.4.yaml",
+	"/registry/edge-node/dp/intel-gpu:1.0.2":       "intel-gpu_1.0.2.yaml",
+	"/registry/edge-node/dp/loadbalancer:0.1.0":    "loadbalancer_0.1.0.yaml",
+	"/registry/edge-node/dp/sriov:0.1.4":           "sriov_0.1.4.yaml",
+	"/registry/edge-node/dp/usb:0.1.0":             "usb_0.1.0.yaml",
+	"/registry/edge-node/dp/virtualization:0.2.4":  "virtualization_0.2.4.yaml",
+	"/registry/edge-node/tmpl/privileged:1.3.4":    "privileged_1.3.4.json",
+	"/registry/edge-node/tmpl/restricted:1.3.4":    "restricted_1.3.4.json",
+	"/registry/edge-node/tmpl/baseline:1.3.4":      "baseline_1.3.4.json",
+	"/registry/edge-node/dp/base-extensions:0.2.0": "base-extensions_0.2.0.yaml",
+	"/registry/edge-node/dp/loadbalancer:0.2.6":    "loadbalancer_0.2.6.yaml",
+	"/registry/edge-node/dp/skupper:0.1.4":         "skupper_0.1.4.yaml",
 }
 
 func (o *testOras) Load(path string, version string) error {
