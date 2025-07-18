@@ -166,7 +166,7 @@ func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Eve
 	}
 	defer pkgOras.Close()
 	for _, dp := range manifest.Lpke.DeploymentPackages {
-		if dp.DesiredState == DesiredStateAbsent {
+		if strings.EqualFold(dp.DesiredState, DesiredStateAbsent) {
 			// TODO: implement deletion of deployment packages. We need to do this _after_ the deployments are deleted.
 			log.Infof("Skipping deployment package %s version %s as desiredState is %s", dp.Dpkg, dp.Version, dp.DesiredState)
 			continue
@@ -211,7 +211,7 @@ func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Eve
 
 		for _, dl := range manifest.Lpke.DeploymentList {
 			log.Infof("displayName: %s", dl.DisplayName)
-			if dl.DesiredState == DesiredStateAbsent {
+			if strings.EqualFold(dl.DesiredState, DesiredStateAbsent) {
 				err = ad.DeleteDeployment(ctx, dl.DpName, dl.DisplayName, dl.DpVersion, dl.DpProfileName, uuid, true)
 				if err != nil {
 					return err
