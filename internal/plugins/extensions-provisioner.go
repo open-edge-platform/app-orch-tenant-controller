@@ -5,12 +5,18 @@ package plugins
 
 import (
 	"context"
-	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
-	"github.com/open-edge-platform/app-orch-tenant-controller/internal/southbound"
-	yaml "gopkg.in/yaml.v2"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
+	"github.com/open-edge-platform/app-orch-tenant-controller/internal/southbound"
+	yaml "gopkg.in/yaml.v2"
+)
+
+const (
+	DesiredStatePresent = "present"
+	DesiredStateAbsent  = "absent"
 )
 
 type Manifest struct {
@@ -20,8 +26,9 @@ type Manifest struct {
 	} `yaml:"metadata"`
 	Lpke struct {
 		DeploymentPackages []struct {
-			Dpkg    string `yaml:"dpkg"`
-			Version string `yaml:"version"`
+			Dpkg         string `yaml:"dpkg"`
+			Version      string `yaml:"version"`
+			DesiredState string `yaml:"desiredState"` // if unspecified, defaults to "present"
 		} `yaml:"deploymentPackages"`
 		DeploymentList []struct {
 			DpName               string `yaml:"dpName"`
@@ -32,6 +39,7 @@ type Manifest struct {
 				Key string `yaml:"key"`
 				Val string `yaml:"val"`
 			} `yaml:"allAppTargetClusters"`
+			DesiredState string `yaml:"desiredState"` // if unspecified, defaults to "present"
 		} `yaml:"deploymentList"`
 	} `yaml:"lpke"`
 }
@@ -39,6 +47,7 @@ type Manifest struct {
 type AppDeployment interface {
 	ListDeploymentNames(ctx context.Context, projectID string) (map[string]string, error)
 	CreateDeployment(ctx context.Context, dpName string, displayName string, version string, profileName string, projectID string, labels map[string]string) error
+	DeleteDeployment(ctx context.Context, dpName string, displayName string, version string, profileName string, projectID string, missingOkay bool) error
 }
 
 func NewAppDeployment(configuration config.Configuration) (AppDeployment, error) {
@@ -194,9 +203,16 @@ func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Eve
 			for _, appTargetCluster := range dl.AllAppTargetClusters {
 				labels[appTargetCluster.Key] = appTargetCluster.Val
 			}
-			err = ad.CreateDeployment(ctx, dl.DpName, dl.DisplayName, dl.DpVersion, dl.DpProfileName, uuid, labels)
-			if err != nil {
-				return err
+			if dl.DesiredState == DesiredStateAbsent {
+				err = ad.DeleteDeployment(ctx, dl.DpName, dl.DisplayName, dl.DpVersion, dl.DpProfileName, uuid, true)
+				if err != nil {
+					return err
+				}
+			} else {
+				err = ad.CreateDeployment(ctx, dl.DpName, dl.DisplayName, dl.DpVersion, dl.DpProfileName, uuid, labels)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
