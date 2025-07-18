@@ -76,7 +76,7 @@ configProvisioner:
   initialSleepInterval: "15"
   maxWaitTime: "600"
 
-  # To use a local manifest, put the entire conents of the manifest file here.
+  # To use a local manifest, put the entire contents of the manifest file here.
   useLocalManifest: ""
 
 annotations: {}

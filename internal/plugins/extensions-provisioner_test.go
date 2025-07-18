@@ -77,9 +77,25 @@ func (s *PluginsTestSuite) TestExtensionsPluginDeleteDeployment() {
 
 	// prepopulate mockDeployments with three deployments
 
-	mockDeployments = map[string]*mockDeployment{"base-extensions-0.2.0-baseline": &mockDeployment{name: "base-extensions", version: "0.2.0", profileName: "baseline", labels: map[string]string{"color": "blue"}},
-		"base-extensions-0.2.0-restricted": &mockDeployment{name: "base-extensions", version: "0.2.0", profileName: "restricted", labels: map[string]string{"color": "red"}},
-		"base-extensions-0.2.0-privileged": &mockDeployment{name: "base-extensions", version: "0.2.0", profileName: "privileged", labels: map[string]string{"color": "green"}},
+	mockDeployments = map[string]*mockDeployment{
+		"base-extensions-0.2.0-baseline": &mockDeployment{
+			name:        "base-extensions",
+			version:     "0.2.0",
+			profileName: "baseline",
+			labels:      map[string]string{"color": "blue"},
+		},
+		"base-extensions-0.2.0-restricted": &mockDeployment{
+			name:        "base-extensions",
+			version:     "0.2.0",
+			profileName: "restricted",
+			labels:      map[string]string{"color": "red"},
+		},
+		"base-extensions-0.2.0-privileged": &mockDeployment{
+			name:        "base-extensions",
+			version:     "0.2.0",
+			profileName: "privileged",
+			labels:      map[string]string{"color": "green"},
+		},
 	}
 
 	// create a manifest that deletes one of the deployments

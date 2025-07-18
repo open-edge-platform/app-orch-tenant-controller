@@ -68,6 +68,8 @@ func (c *testAdmClient) CreateDeployment(_ context.Context, in *adm.CreateDeploy
 }
 
 func (c *testAdmClient) DeleteDeployment(_ context.Context, in *adm.DeleteDeploymentRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
+	_ = in
+	// TODO: Implement deletion logic
 	return &emptypb.Empty{}, nil
 }
 

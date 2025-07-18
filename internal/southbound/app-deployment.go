@@ -134,15 +134,15 @@ func (a *AppDeployment) DeleteDeployment(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	deplId := ""
+	deplID := ""
 	for _, dep := range resp.GetDeployments() {
 		if dep.DisplayName == displayName && dep.AppName == dpName && dep.AppVersion == version && dep.ProfileName == profileName {
-			deplId = dep.DeployId
-			log.Infof("Found deployment %s with ID %s", displayName, deplId)
+			deplID = dep.DeployId
+			log.Infof("Found deployment %s with ID %s", displayName, deplID)
 			break
 		}
 	}
-	if deplId == "" {
+	if deplID == "" {
 		if missingOkay {
 			log.Infof("Deployment %s not found, skipping deletion", displayName)
 			return nil
@@ -151,16 +151,11 @@ func (a *AppDeployment) DeleteDeployment(ctx context.Context,
 	}
 
 	deleteDeploymentRequest := &adm.DeleteDeploymentRequest{
-		DeplId:     deplId,
+		DeplId:     deplID,
 		DeleteType: adm.DeleteType_PARENT_ONLY,
 	}
 
 	_, err = a.admClient.DeleteDeployment(lctx, deleteDeploymentRequest)
-	if e, ok := status.FromError(err); ok {
-		if e.Code() == codes.AlreadyExists {
-			return nil
-		}
-	}
 	if err != nil {
 		return err
 	}

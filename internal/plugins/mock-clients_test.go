@@ -278,6 +278,8 @@ func (t *testADM) CreateDeployment(_ context.Context, name string, _ string, ver
 }
 
 func (t *testADM) DeleteDeployment(_ context.Context, name string, _ string, version string, profileName string, projectID string, missingOkay bool) error {
+	_ = projectID
+	// TODO: implement project ID test
 	mdKey := fmt.Sprintf("%s-%s-%s", name, version, profileName)
 	if _, exists := mockDeployments[mdKey]; !exists {
 		if !missingOkay {

@@ -80,7 +80,7 @@ type Configuration struct {
 	// number of worker threads
 	NumberWorkerThreads int
 
-	// if set, use local manifest instead of remote release service
+	// if this string is nonempty, provisioner will use a local manifest contianed in the string instead of using manifest from remote release service
 	UseLocalManifest string
 }
 
