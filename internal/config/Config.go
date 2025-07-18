@@ -5,10 +5,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/open-edge-platform/orch-library/go/dazl"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/open-edge-platform/orch-library/go/dazl"
 )
 
 var log = dazl.GetPackageLogger()
@@ -78,6 +79,9 @@ type Configuration struct {
 
 	// number of worker threads
 	NumberWorkerThreads int
+
+	// if set, use local manifest instead of remote release service
+	UseLocalManifest string
 }
 
 func DumpConfig(config Configuration) {
@@ -103,6 +107,7 @@ func DumpConfig(config Configuration) {
 	log.Infof("   initialSleepInterval: %s", config.InitialSleepInterval)
 	log.Infof("   maxWaitTime: %s", config.MaxWaitTime)
 	log.Infof("   numberWorkerThreads: %d", config.NumberWorkerThreads)
+	log.Infof("   useLocalManifest: %s", config.UseLocalManifest)
 }
 
 func InitConfig() (Configuration, error) {
@@ -124,6 +129,7 @@ func InitConfig() (Configuration, error) {
 	config.VaultServer = os.Getenv("VAULT_SERVER")
 	config.ReleaseServiceBase = os.Getenv("RELEASE_SERVICE_BASE")
 	config.ServiceAccount = os.Getenv("SERVICE_ACCOUNT")
+	config.UseLocalManifest = os.Getenv("USE_LOCAL_MANIFEST")
 
 	var err error
 

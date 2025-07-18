@@ -114,33 +114,44 @@ func (p *ExtensionsProvisionerPlugin) Initialize(_ context.Context, _ PluginData
 func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Event, _ PluginData) error {
 	var err error
 
-	manifestOras, err := OrasFactory(p.configuration.ReleaseServiceBase)
-	if err != nil {
-		return err
+	var yamlBytes []byte
+
+	if p.configuration.UseLocalManifest != "" {
+		log.Info("Using local manifest")
+		yamlBytes = []byte(p.configuration.UseLocalManifest)
+	} else {
+		log.Infof("Using remote manifest directory %s%s:%s", p.configuration.ReleaseServiceBase, p.configuration.ManifestPath, p.configuration.ManifestTag)
+
+		manifestOras, err := OrasFactory(p.configuration.ReleaseServiceBase)
+		if err != nil {
+			return err
+		}
+		defer manifestOras.Close()
+
+		err = manifestOras.Load(p.configuration.ManifestPath, p.configuration.ManifestTag)
+		if err != nil {
+			return err
+		}
+
+		manifestDir := manifestOras.Dest()
+
+		entries, err := os.ReadDir(manifestDir)
+		if err != nil {
+			return err
+		}
+
+		yamlBytes, err = os.ReadFile(manifestOras.Dest() + "/" + entries[0].Name())
+		if err != nil {
+			return err
+		}
 	}
-	defer manifestOras.Close()
 
 	cat, err := CatalogFactory(p.configuration)
 	if err != nil {
 		return err
 	}
 
-	err = manifestOras.Load(p.configuration.ManifestPath, p.configuration.ManifestTag)
-	if err != nil {
-		return err
-	}
-
 	manifest := Manifest{}
-
-	entries, err := os.ReadDir(manifestOras.Dest())
-	if err != nil {
-		return err
-	}
-
-	yamlBytes, err := os.ReadFile(manifestOras.Dest() + "/" + entries[0].Name())
-	if err != nil {
-		return err
-	}
 
 	decoder := yaml.NewDecoder(strings.NewReader(string(yamlBytes)))
 	err = decoder.Decode(&manifest)
@@ -166,7 +177,7 @@ func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Eve
 			return err
 		}
 
-		entries, err = os.ReadDir(pkgOras.Dest())
+		entries, err := os.ReadDir(pkgOras.Dest())
 		if err != nil {
 			return err
 		}
