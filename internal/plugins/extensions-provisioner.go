@@ -211,21 +211,21 @@ func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Eve
 
 		for _, dl := range manifest.Lpke.DeploymentList {
 			log.Infof("displayName: %s", dl.DisplayName)
-			if _, exists := existingDisplayNames[dl.DisplayName]; exists {
-				log.Infof("Deployment with displayName %s already exists, skipping creation", dl.DisplayName)
-				continue
-			}
-
-			labels := map[string]string{}
-			for _, appTargetCluster := range dl.AllAppTargetClusters {
-				labels[appTargetCluster.Key] = appTargetCluster.Val
-			}
 			if dl.DesiredState == DesiredStateAbsent {
 				err = ad.DeleteDeployment(ctx, dl.DpName, dl.DisplayName, dl.DpVersion, dl.DpProfileName, uuid, true)
 				if err != nil {
 					return err
 				}
 			} else {
+				if _, exists := existingDisplayNames[dl.DisplayName]; exists {
+					log.Infof("Deployment with displayName %s already exists, skipping creation", dl.DisplayName)
+					continue
+				}
+
+				labels := map[string]string{}
+				for _, appTargetCluster := range dl.AllAppTargetClusters {
+					labels[appTargetCluster.Key] = appTargetCluster.Val
+				}
 				err = ad.CreateDeployment(ctx, dl.DpName, dl.DisplayName, dl.DpVersion, dl.DpProfileName, uuid, labels)
 				if err != nil {
 					return err
