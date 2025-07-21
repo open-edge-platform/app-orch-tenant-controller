@@ -6,6 +6,7 @@ package plugins
 import (
 	"context"
 	"fmt"
+
 	nexushook "github.com/open-edge-platform/app-orch-tenant-controller/internal/nexus"
 	"github.com/open-edge-platform/orch-library/go/dazl"
 )
@@ -86,4 +87,8 @@ func Dispatch(ctx context.Context, event Event, hook *nexushook.Hook) error {
 
 func Register(plugin Plugin) {
 	plugins = append(plugins, plugin)
+}
+
+func RemoveAllPlugins() {
+	plugins = []Plugin{}
 }

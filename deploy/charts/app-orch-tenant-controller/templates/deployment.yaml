@@ -121,6 +121,10 @@ spec:
         - name: no_proxy
           value: {{ .Values.configProvisioner.noProxy }}
 
+        # for overriding the manifest
+        - name: USE_LOCAL_MANIFEST
+          value: {{ .Values.configProvisioner.useLocalManifest | quote }}
+
         {{- with .Values.resources }}
         resources:
         {{- toYaml . | nindent 10 }}

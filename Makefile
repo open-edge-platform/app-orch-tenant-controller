@@ -58,6 +58,7 @@ MGMT_NAME        ?= kind
 MGMT_CLUSTER    ?= kind-${MGMT_NAME}
 CODER_DIR ?= ~/edge-manageability-framework
 CONFIG_PROVISIONER_HELM_PKG ?= $(MAKEDIR)/${CHART_BUILD_DIR}${PUBLISH_NAME}-${CHART_VERSION}.tgz
+DEVEL_HELM_VALUES ?= $(CODER_DIR)/argocd/applications/configs/app-orch-tenant-controller.yaml
 
 GOPATH := $(shell go env GOPATH)
 GOLANG_COVER_VERSION             = v0.2.0
@@ -247,7 +248,7 @@ coder-redeploy: chart ## Installs the helm chart in the kind cluster
 	kubectl config use-context ${MGMT_CLUSTER}
 	kubectl patch application -n dev root-app --type=merge -p '{"spec":{"syncPolicy":{"automated":{"selfHeal":false}}}}'
 	kubectl delete application -n dev app-orch-tenant-controller --ignore-not-found=true
-	helm upgrade --install -n ${CHART_NAMESPACE} app-orch-tenant-controller -f $(CODER_DIR)/argocd/applications/configs/app-orch-tenant-controller.yaml  $(CONFIG_PROVISIONER_HELM_PKG)
+	helm upgrade --install -n ${CHART_NAMESPACE} app-orch-tenant-controller -f $(DEVEL_HELM_VALUES) $(CONFIG_PROVISIONER_HELM_PKG)
 	helm -n ${CHART_NAMESPACE} ls
 
 

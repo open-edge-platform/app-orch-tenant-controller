@@ -5,12 +5,18 @@ package plugins
 
 import (
 	"context"
-	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
-	"github.com/open-edge-platform/app-orch-tenant-controller/internal/southbound"
-	yaml "gopkg.in/yaml.v2"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
+	"github.com/open-edge-platform/app-orch-tenant-controller/internal/southbound"
+	yaml "gopkg.in/yaml.v2"
+)
+
+const (
+	DesiredStatePresent = "present"
+	DesiredStateAbsent  = "absent"
 )
 
 type Manifest struct {
@@ -20,8 +26,9 @@ type Manifest struct {
 	} `yaml:"metadata"`
 	Lpke struct {
 		DeploymentPackages []struct {
-			Dpkg    string `yaml:"dpkg"`
-			Version string `yaml:"version"`
+			Dpkg         string `yaml:"dpkg"`
+			Version      string `yaml:"version"`
+			DesiredState string `yaml:"desiredState"` // if unspecified, defaults to "present"
 		} `yaml:"deploymentPackages"`
 		DeploymentList []struct {
 			DpName               string `yaml:"dpName"`
@@ -32,6 +39,7 @@ type Manifest struct {
 				Key string `yaml:"key"`
 				Val string `yaml:"val"`
 			} `yaml:"allAppTargetClusters"`
+			DesiredState string `yaml:"desiredState"` // if unspecified, defaults to "present"
 		} `yaml:"deploymentList"`
 	} `yaml:"lpke"`
 }
@@ -39,6 +47,7 @@ type Manifest struct {
 type AppDeployment interface {
 	ListDeploymentNames(ctx context.Context, projectID string) (map[string]string, error)
 	CreateDeployment(ctx context.Context, dpName string, displayName string, version string, profileName string, projectID string, labels map[string]string) error
+	DeleteDeployment(ctx context.Context, dpName string, displayName string, version string, profileName string, projectID string, missingOkay bool) error
 }
 
 func NewAppDeployment(configuration config.Configuration) (AppDeployment, error) {
@@ -105,33 +114,44 @@ func (p *ExtensionsProvisionerPlugin) Initialize(_ context.Context, _ PluginData
 func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Event, _ PluginData) error {
 	var err error
 
-	manifestOras, err := OrasFactory(p.configuration.ReleaseServiceBase)
-	if err != nil {
-		return err
+	var yamlBytes []byte
+
+	if p.configuration.UseLocalManifest != "" {
+		log.Info("Using local manifest")
+		yamlBytes = []byte(p.configuration.UseLocalManifest)
+	} else {
+		log.Infof("Using remote manifest directory %s%s:%s", p.configuration.ReleaseServiceBase, p.configuration.ManifestPath, p.configuration.ManifestTag)
+
+		manifestOras, err := OrasFactory(p.configuration.ReleaseServiceBase)
+		if err != nil {
+			return err
+		}
+		defer manifestOras.Close()
+
+		err = manifestOras.Load(p.configuration.ManifestPath, p.configuration.ManifestTag)
+		if err != nil {
+			return err
+		}
+
+		manifestDir := manifestOras.Dest()
+
+		entries, err := os.ReadDir(manifestDir)
+		if err != nil {
+			return err
+		}
+
+		yamlBytes, err = os.ReadFile(manifestOras.Dest() + "/" + entries[0].Name())
+		if err != nil {
+			return err
+		}
 	}
-	defer manifestOras.Close()
 
 	cat, err := CatalogFactory(p.configuration)
 	if err != nil {
 		return err
 	}
 
-	err = manifestOras.Load(p.configuration.ManifestPath, p.configuration.ManifestTag)
-	if err != nil {
-		return err
-	}
-
 	manifest := Manifest{}
-
-	entries, err := os.ReadDir(manifestOras.Dest())
-	if err != nil {
-		return err
-	}
-
-	yamlBytes, err := os.ReadFile(manifestOras.Dest() + "/" + entries[0].Name())
-	if err != nil {
-		return err
-	}
 
 	decoder := yaml.NewDecoder(strings.NewReader(string(yamlBytes)))
 	err = decoder.Decode(&manifest)
@@ -146,12 +166,18 @@ func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Eve
 	}
 	defer pkgOras.Close()
 	for _, dp := range manifest.Lpke.DeploymentPackages {
+		if strings.EqualFold(dp.DesiredState, DesiredStateAbsent) {
+			// TODO: implement deletion of deployment packages. We need to do this _after_ the deployments are deleted.
+			log.Infof("Skipping deployment package %s version %s as desiredState is %s", dp.Dpkg, dp.Version, dp.DesiredState)
+			continue
+		}
+
 		err = pkgOras.Load(`/`+dp.Dpkg, dp.Version)
 		if err != nil {
 			return err
 		}
 
-		entries, err = os.ReadDir(pkgOras.Dest())
+		entries, err := os.ReadDir(pkgOras.Dest())
 		if err != nil {
 			return err
 		}
@@ -185,18 +211,25 @@ func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Eve
 
 		for _, dl := range manifest.Lpke.DeploymentList {
 			log.Infof("displayName: %s", dl.DisplayName)
-			if _, exists := existingDisplayNames[dl.DisplayName]; exists {
-				log.Infof("Deployment with displayName %s already exists, skipping creation", dl.DisplayName)
-				continue
-			}
+			if strings.EqualFold(dl.DesiredState, DesiredStateAbsent) {
+				err = ad.DeleteDeployment(ctx, dl.DpName, dl.DisplayName, dl.DpVersion, dl.DpProfileName, uuid, true)
+				if err != nil {
+					return err
+				}
+			} else {
+				if _, exists := existingDisplayNames[dl.DisplayName]; exists {
+					log.Infof("Deployment with displayName %s already exists, skipping creation", dl.DisplayName)
+					continue
+				}
 
-			labels := map[string]string{}
-			for _, appTargetCluster := range dl.AllAppTargetClusters {
-				labels[appTargetCluster.Key] = appTargetCluster.Val
-			}
-			err = ad.CreateDeployment(ctx, dl.DpName, dl.DisplayName, dl.DpVersion, dl.DpProfileName, uuid, labels)
-			if err != nil {
-				return err
+				labels := map[string]string{}
+				for _, appTargetCluster := range dl.AllAppTargetClusters {
+					labels[appTargetCluster.Key] = appTargetCluster.Val
+				}
+				err = ad.CreateDeployment(ctx, dl.DpName, dl.DisplayName, dl.DpVersion, dl.DpProfileName, uuid, labels)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
