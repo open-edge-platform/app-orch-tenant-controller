@@ -237,6 +237,8 @@ type testADM struct {
 
 var mockADM *testADM
 
+var mockDeployments = map[string]*mockDeployment{}
+
 func newTestADM(_ config.Configuration) (AppDeployment, error) {
 	if mockADM == nil {
 		mockADM = &testADM{}
@@ -246,6 +248,11 @@ func newTestADM(_ config.Configuration) (AppDeployment, error) {
 
 func (t *testADM) ListDeploymentNames(_ context.Context, _ string) (map[string]string, error) {
 	displayName := make(map[string]string)
+	for _, md := range mockDeployments {
+		if md.name != "" {
+			displayName[md.name] = md.name
+		}
+	}
 	return displayName, nil
 }
 
@@ -257,8 +264,6 @@ type mockDeployment struct {
 	labels      map[string]string
 }
 
-var mockDeployments = map[string]*mockDeployment{}
-
 func (t *testADM) CreateDeployment(_ context.Context, name string, _ string, version string, profileName string, projectID string, labels map[string]string) error {
 	md := &mockDeployment{
 		name:        name,
@@ -269,5 +274,19 @@ func (t *testADM) CreateDeployment(_ context.Context, name string, _ string, ver
 	}
 	mdKey := fmt.Sprintf("%s-%s-%s", md.name, md.version, md.profileName)
 	mockDeployments[mdKey] = md
+	return nil
+}
+
+func (t *testADM) DeleteDeployment(_ context.Context, name string, _ string, version string, profileName string, projectID string, missingOkay bool) error {
+	_ = projectID
+	// TODO: implement project ID test
+	mdKey := fmt.Sprintf("%s-%s-%s", name, version, profileName)
+	if _, exists := mockDeployments[mdKey]; !exists {
+		if !missingOkay {
+			return fmt.Errorf("deployment %s not found", mdKey)
+		}
+		return nil
+	}
+	delete(mockDeployments, mdKey)
 	return nil
 }

@@ -6,12 +6,14 @@ package southbound
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	adm "github.com/open-edge-platform/app-orch-deployment/app-deployment-manager/api/nbi/v2/deployment/v1"
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
-	"testing"
-	"time"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // Suite of catalog southbound tests
@@ -63,6 +65,12 @@ func (c *testAdmClient) CreateDeployment(_ context.Context, in *adm.CreateDeploy
 	resp := adm.CreateDeploymentResponse{}
 	resp.DeploymentId = in.Deployment.Name
 	return &resp, nil
+}
+
+func (c *testAdmClient) DeleteDeployment(_ context.Context, in *adm.DeleteDeploymentRequest, _ ...grpc.CallOption) (*emptypb.Empty, error) {
+	_ = in
+	// TODO: Implement deletion logic
+	return &emptypb.Empty{}, nil
 }
 
 func NewTestAdmClient(_ string) (AdmClient, error) {
