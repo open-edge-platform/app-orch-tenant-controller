@@ -161,14 +161,15 @@ func (m *Manager) handleProjectEvent(event plugins.Event) error {
 	return err
 }
 
-func (m *Manager) CreateProject(organizationName string, projectName string, projectUUID string, project nexushook.NexusProjectInterface) {
-	log.Debugf("Creating project with organizationName=%s; projectName=%s; projectUUID=%s", organizationName, projectName, projectUUID)
+func (m *Manager) CreateProject(organizationName string, projectName string, projectUUID string, project nexushook.NexusProjectInterface, action string) {
+	log.Debugf("Creating project with organizationName=%s; projectName=%s; projectUUID=%s; action=%s", organizationName, projectName, projectUUID, action)
 	e := plugins.Event{
 		EventType:    "create",
 		Organization: organizationName,
 		Name:         projectName,
 		UUID:         projectUUID,
 		Project:      project,
+		Action:       action,
 	}
 	m.eventChan <- e
 }
