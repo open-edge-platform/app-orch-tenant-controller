@@ -5,6 +5,7 @@ package nexus
 
 import (
 	"context"
+	"errors"
 	projectActiveWatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectactivewatcher.edge-orchestrator.intel.com/v1"
 	nexus "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/nexus-client"
 )
@@ -27,7 +28,10 @@ func (f *MockNexusFolder) GetParent(ctx context.Context) (NexusOrganizationInter
 	return f.parent, nil
 }
 
-type MockNexusProjectActiveWatcher nexus.ProjectactivewatcherProjectActiveWatcher
+type MockNexusProjectActiveWatcher struct {
+	nexus.ProjectactivewatcherProjectActiveWatcher
+	annotations map[string]string
+}
 
 func (w *MockNexusProjectActiveWatcher) Update(ctx context.Context) error {
 	_ = ctx
@@ -38,8 +42,19 @@ func (w *MockNexusProjectActiveWatcher) GetSpec() *projectActiveWatcherv1.Projec
 	return &w.Spec
 }
 
+func (w *MockNexusProjectActiveWatcher) GetAnnotations() map[string]string {
+	if w.annotations == nil {
+		w.annotations = make(map[string]string)
+	}
+	return w.annotations
+}
+
+func (w *MockNexusProjectActiveWatcher) SetAnnotations(annotations map[string]string) {
+	w.annotations = annotations
+}
+
 func (w *MockNexusProjectActiveWatcher) DisplayName() string {
-	return (*nexus.ProjectactivewatcherProjectActiveWatcher)(w).DisplayName()
+	return w.Name
 }
 
 type MockNexusProject struct {
@@ -57,9 +72,18 @@ func (p *MockNexusProject) GetActiveWatchers(ctx context.Context, name string) (
 
 func (p *MockNexusProject) AddActiveWatchers(ctx context.Context, watcher *projectActiveWatcherv1.ProjectActiveWatcher) (NexusProjectActiveWatcherInterface, error) {
 	_ = ctx
-	p.activeWatchers[watcher.Name] = &MockNexusProjectActiveWatcher{ProjectActiveWatcher: watcher}
-
-	return p.activeWatchers[watcher.Name], nil
+	
+	// Check if watcher already exists
+	if existingWatcher, exists := p.activeWatchers[watcher.Name]; exists {
+		return existingWatcher, errors.New("already exists")
+	}
+	
+	mockWatcher := &MockNexusProjectActiveWatcher{
+		ProjectactivewatcherProjectActiveWatcher: nexus.ProjectactivewatcherProjectActiveWatcher{ProjectActiveWatcher: watcher},
+		annotations: make(map[string]string),
+	}
+	p.activeWatchers[watcher.Name] = mockWatcher
+	return mockWatcher, nil
 }
 
 func (p *MockNexusProject) DeleteActiveWatchers(ctx context.Context, name string) error {
