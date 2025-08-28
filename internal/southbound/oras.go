@@ -54,7 +54,8 @@ func (o *Oras) Load(manifestPath string, manifestTag string) error {
 	}
 	defer fs.Close()
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Duration(orasLoadTimeout))
+	ctx, cancel := context.WithTimeout(context.Background(), orasLoadTimeout)
+	defer cancel()
 	orasPath := o.registry + manifestPath
 	log.Infof("ORAS request base URL %s", orasPath)
 
