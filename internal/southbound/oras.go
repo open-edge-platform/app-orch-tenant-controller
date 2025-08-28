@@ -16,11 +16,11 @@ import (
 	"oras.land/oras-go/v2/registry/remote"
 )
 
-const {
+const (
 	// Default Timeout when calling Oras. We're loading very small objects (yaml for deployment packages)
 	// so 5 minutes should be plenty.
-	orasLoadTimeout = 5 * time.Minute()
-}
+	orasLoadTimeout = 5 * time.Minute
+)
 
 type Oras struct {
 	dest     string
