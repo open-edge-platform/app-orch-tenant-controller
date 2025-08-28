@@ -5,14 +5,22 @@ package southbound
 
 import (
 	"context"
+	"os"
+	"time"
+
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/retry"
-	"os"
 
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/registry/remote"
 )
+
+const {
+	// Default Timeout when calling Oras. We're loading very small objects (yaml for deployment packages)
+	// so 5 minutes should be plenty.
+	orasLoadTimeout = 5 * time.Minute()
+}
 
 type Oras struct {
 	dest     string
@@ -46,7 +54,7 @@ func (o *Oras) Load(manifestPath string, manifestTag string) error {
 	}
 	defer fs.Close()
 
-	ctx := context.Background()
+	ctx, _ := context.WithTimeout(context.Background(), time.Duration(orasLoadTimeout))
 	orasPath := o.registry + manifestPath
 	log.Infof("ORAS request base URL %s", orasPath)
 
