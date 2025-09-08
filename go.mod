@@ -20,7 +20,7 @@ require (
 	k8s.io/apimachinery v0.34.0
 	k8s.io/client-go v0.34.0
 	oras.land/oras-go/v2 v2.6.0
-	sigs.k8s.io/controller-runtime v0.22.0
+	sigs.k8s.io/controller-runtime v0.22.1
 )
 
 require (
