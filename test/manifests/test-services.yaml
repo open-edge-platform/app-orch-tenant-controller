@@ -1,0 +1,352 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# Mock services for component testing
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-harbor
+  namespace: harbor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-harbor
+  template:
+    metadata:
+      labels:
+        app: mock-harbor
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mock-harbor
+          image: nginx:alpine
+          ports:
+            - containerPort: 8080
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: html
+              mountPath: /usr/share/nginx/html
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+      volumes:
+        - name: config
+          configMap:
+            name: mock-harbor-config
+        - name: html
+          configMap:
+            name: mock-harbor-html
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-harbor
+  namespace: harbor
+spec:
+  type: NodePort
+  selector:
+    app: mock-harbor
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mock-harbor-config
+  namespace: harbor
+data:
+  nginx.conf: |
+    events {}
+    http {
+      server {
+        listen 8080;
+        location /api/v2.0/health {
+          return 200 '{"status":"healthy"}';
+          add_header Content-Type application/json;
+        }
+        location / {
+          root /usr/share/nginx/html;
+          index index.html;
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mock-harbor-html
+  namespace: harbor
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head><title>Mock Harbor</title></head>
+    <body><h1>Mock Harbor Service</h1></body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-keycloak
+  namespace: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-keycloak
+  template:
+    metadata:
+      labels:
+        app: mock-keycloak
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mock-keycloak
+          image: nginx:alpine
+          ports:
+            - containerPort: 8080
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: html
+              mountPath: /usr/share/nginx/html
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+      volumes:
+        - name: config
+          configMap:
+            name: mock-keycloak-config
+        - name: html
+          configMap:
+            name: mock-keycloak-html
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-keycloak
+  namespace: keycloak
+spec:
+  type: NodePort
+  selector:
+    app: mock-keycloak
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30081
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mock-keycloak-config
+  namespace: keycloak
+data:
+  nginx.conf: |
+    events {}
+    http {
+      server {
+        listen 8080;
+        location /health {
+          return 200 '{"status":"UP"}';
+          add_header Content-Type application/json;
+        }
+        location / {
+          root /usr/share/nginx/html;
+          index index.html;
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mock-keycloak-html
+  namespace: keycloak
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head><title>Mock Keycloak</title></head>
+    <body><h1>Mock Keycloak Service</h1></body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-catalog
+  namespace: orch-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-catalog
+  template:
+    metadata:
+      labels:
+        app: mock-catalog
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mock-catalog
+          image: nginx:alpine
+          ports:
+            - containerPort: 8080
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: html
+              mountPath: /usr/share/nginx/html
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+      volumes:
+        - name: config
+          configMap:
+            name: mock-catalog-config
+        - name: html
+          configMap:
+            name: mock-catalog-html
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-catalog
+  namespace: orch-app
+spec:
+  type: NodePort
+  selector:
+    app: mock-catalog
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30082
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mock-catalog-config
+  namespace: orch-app
+data:
+  nginx.conf: |
+    events {}
+    http {
+      server {
+        listen 8080;
+        location /health {
+          return 200 '{"status":"healthy"}';
+          add_header Content-Type application/json;
+        }
+        location / {
+          root /usr/share/nginx/html;
+          index index.html;
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mock-catalog-html
+  namespace: orch-app
+data:
+  index.html: |-
+    <!DOCTYPE html>
+    <html>
+    <head><title>Mock Catalog</title></head>
+    <body><h1>Mock Catalog Service</h1></body>
+    </html>

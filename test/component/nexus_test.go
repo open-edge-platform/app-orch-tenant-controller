@@ -55,12 +55,6 @@ func (s *NexusHookComponentTests) testNexusHookSubscription() {
 	s.Require().NotNil(hook)
 
 	// Test subscription
-	// Note: In a real test environment, this would require a running Kubernetes cluster
-	// with the appropriate CRDs installed
-
-	// For component tests, we can test the subscription logic without actual K8s
-	// or use a test Kubernetes environment
-
 	s.T().Log("Nexus hook subscription test - requires Kubernetes environment")
 }
 
@@ -93,10 +87,6 @@ func (s *NexusHookComponentTests) testNexusHookProjectCreation() {
 		uuid:        testProject.UUID,
 		displayName: testProject.Name,
 	}
-
-	// Test project creation event
-	// In a real implementation, this would be triggered by Nexus events
-	// For component tests, we can simulate the event handling
 
 	s.T().Logf("Simulating project creation for %s/%s", testProject.Organization, testProject.Name)
 
@@ -269,8 +259,6 @@ func (s *NexusHookComponentTests) testNexusHookProjectManagerIntegration() {
 			displayName: project.Name,
 		}
 
-		// In a real scenario, these would be triggered by Nexus events
-		// For component tests, we simulate the manager calls
 		mockManager.CreateProject(project.Organization, project.Name, project.UUID, mockNexusProject)
 
 		s.T().Logf("Created project: %s/%s", project.Organization, project.Name)

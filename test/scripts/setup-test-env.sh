@@ -224,7 +224,7 @@ kubectl create namespace orch-app --dry-run=client -o yaml | kubectl apply -f -
 
 # Deploy mock services
 echo -e "${YELLOW}Deploying mock services...${NC}"
-kubectl apply -f .github/workflows/test-services.yaml
+kubectl apply -f test/manifests/test-services.yaml
 
 # Wait for services to be ready
 echo -e "${YELLOW}Waiting for mock services to be ready...${NC}"

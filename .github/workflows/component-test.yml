@@ -81,7 +81,7 @@ jobs:
         kubectl create namespace orch-app --dry-run=client -o yaml | kubectl apply -f -
         
         # Create mock services for testing
-        kubectl apply -f .github/workflows/test-services.yaml
+        kubectl apply -f test/manifests/test-services.yaml
 
     - name: Wait for test infrastructure
       run: |

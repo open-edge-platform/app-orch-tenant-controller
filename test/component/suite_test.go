@@ -12,7 +12,6 @@ import (
 
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/manager"
-	"github.com/open-edge-platform/app-orch-tenant-controller/test/utils"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -61,9 +60,8 @@ func (s *ComponentTestSuite) SetupSuite() {
 	s.T().Logf("  Catalog Server: %s", s.Config.CatalogServer)
 	s.T().Logf("  Manifest Tag: %s", s.Config.ManifestTag)
 
-	// Wait for services to be ready
-	s.T().Log("⏳ Waiting for test services to be ready...")
-	s.waitForRequiredServices()
+	// Skip service readiness checks for mock-based component tests
+	s.T().Log("⏳ Using mock-based testing (skipping service connectivity checks)...")
 
 	s.T().Log("✅ Component Test Suite Setup Complete")
 }
@@ -105,34 +103,7 @@ func (s *ComponentTestSuite) TearDownSuite() {
 	s.T().Log("✅ Component Test Suite Cleanup Complete")
 }
 
-// waitForRequiredServices waits for required services to be available
-func (s *ComponentTestSuite) waitForRequiredServices() {
-	s.T().Log("Waiting for required services to be ready")
-
-	// Create a context with shorter timeout for service readiness checks
-	ctx, cancel := context.WithTimeout(s.Context, 2*time.Minute)
-	defer cancel()
-
-	// List of services to check
-	services := []utils.ServiceCheck{
-		{Name: "Harbor", URL: s.Config.HarborServer, HealthPath: "/api/v2.0/health"},
-		{Name: "Keycloak", URL: s.Config.KeycloakServer, HealthPath: "/health"},
-		{Name: "Catalog", URL: s.Config.CatalogServer, HealthPath: "/health"},
-	}
-
-	// Wait for each service with shorter timeout
-	for _, service := range services {
-		s.T().Logf("Checking %s at %s", service.Name, service.URL)
-		err := utils.WaitForService(ctx, service)
-		if err != nil {
-			s.T().Logf("Warning: %s service check failed: %v (continuing anyway)", service.Name, err)
-		} else {
-			s.T().Logf("✓ %s is ready", service.Name)
-		}
-	}
-
-	s.T().Log("Service readiness check completed")
-}
+// Mock-based component tests don't require actual service connectivity
 
 // getEnvOrDefault returns environment variable value or default
 func getEnvOrDefault(key, defaultValue string) string {
