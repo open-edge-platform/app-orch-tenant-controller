@@ -12,7 +12,12 @@ NC='\033[0m' # No Color
 
 echo -e "${YELLOW}Cleaning up component test environment...${NC}"
 
-CLUSTER_NAME=${KIND_CLUSTER_NAME:-"tenant-controller-test"}
+# Use the same logic as setup script for cluster naming
+if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
+    CLUSTER_NAME=${KIND_CLUSTER_NAME:-"tenant-controller-test-${GITHUB_RUN_ID:-$$}"}
+else
+    CLUSTER_NAME=${KIND_CLUSTER_NAME:-"tenant-controller-test"}
+fi
 
 # Only delete the specific test cluster, not any existing clusters
 if kind get clusters | grep -q "^${CLUSTER_NAME}$"; then
@@ -26,6 +31,12 @@ fi
 echo -e "${YELLOW}Cleaning up any remaining processes...${NC}"
 pkill -f "kind.*${CLUSTER_NAME}" || true
 pkill -f "kubectl.*port-forward" || true
+
+# Clean up temporary config file
+if [ -f "/tmp/kind-config-${CLUSTER_NAME}.yaml" ]; then
+    echo -e "${YELLOW}Removing temporary KIND config file${NC}"
+    rm -f "/tmp/kind-config-${CLUSTER_NAME}.yaml"
+fi
 
 # Restore original kubectl context
 if [ -f /tmp/original-kubectl-context ]; then

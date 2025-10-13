@@ -39,8 +39,111 @@ else
 fi
 
 # Check if our test cluster already exists
-CLUSTER_NAME=${KIND_CLUSTER_NAME:-"tenant-controller-test"}
+# Use a more unique name in CI environments
+if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
+    CLUSTER_NAME=${KIND_CLUSTER_NAME:-"tenant-controller-test-${GITHUB_RUN_ID:-$$}"}
+else
+    CLUSTER_NAME=${KIND_CLUSTER_NAME:-"tenant-controller-test"}
+fi
 CONFIG_FILE=${KIND_CONFIG_FILE:-"test/config/kind-config.yaml"}
+
+# Function to find an available API server port
+find_available_port() {
+    local start_port=6444
+    local max_port=6500
+    
+    for port in $(seq $start_port $max_port); do
+        if ! netstat -tlnp 2>/dev/null | grep -q ":$port "; then
+            echo "$port"
+            return 0
+        fi
+    done
+    
+    echo "6444"  # fallback
+}
+
+# In CI environments, dynamically assign API server port to avoid conflicts
+if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
+    AVAILABLE_API_PORT=$(find_available_port)
+    echo -e "${YELLOW}Using API server port: ${AVAILABLE_API_PORT}${NC}"
+    
+    # Create a temporary config file with the available port
+    TEMP_CONFIG="/tmp/kind-config-${CLUSTER_NAME}.yaml"
+    if [ -f "$CONFIG_FILE" ]; then
+        # Replace the apiServerPort in the config
+        sed "s/apiServerPort: [0-9]*/apiServerPort: ${AVAILABLE_API_PORT}/" "$CONFIG_FILE" > "$TEMP_CONFIG"
+        CONFIG_FILE="$TEMP_CONFIG"
+    fi
+fi
+
+# Function to create cluster with retry logic
+create_cluster() {
+    local max_retries=3
+    local retry=1
+    
+    while [ $retry -le $max_retries ]; do
+        echo -e "${YELLOW}Creating KIND cluster: ${CLUSTER_NAME} (attempt $retry/$max_retries)${NC}"
+        
+        if [ -f "$CONFIG_FILE" ]; then
+            if kind create cluster --name "$CLUSTER_NAME" --config "$CONFIG_FILE" --wait 300s; then
+                echo -e "${GREEN}Successfully created cluster ${CLUSTER_NAME}${NC}"
+                return 0
+            fi
+        else
+            echo -e "${YELLOW}Config file $CONFIG_FILE not found, creating cluster with default settings${NC}"
+            if kind create cluster --name "$CLUSTER_NAME" --wait 300s; then
+                echo -e "${GREEN}Successfully created cluster ${CLUSTER_NAME}${NC}"
+                return 0
+            fi
+        fi
+        
+        echo -e "${RED}Failed to create cluster (attempt $retry/$max_retries)${NC}"
+        
+        # If it's a port conflict, try to clean up existing clusters first
+        if [ $retry -eq 1 ]; then
+            echo -e "${YELLOW}Cleaning up any existing clusters that might cause port conflicts...${NC}"
+            
+            # Show what's using common Kubernetes ports
+            echo -e "${YELLOW}Checking port usage:${NC}"
+            netstat -tlnp 2>/dev/null | grep -E ":6443|:6444" || true
+            
+            # List all KIND clusters
+            echo -e "${YELLOW}Current KIND clusters:${NC}"
+            kind get clusters || true
+            
+            # Clean up any existing test clusters
+            for cluster in $(kind get clusters 2>/dev/null | grep -E "(tenant-controller|test)" || true); do
+                echo -e "${YELLOW}Deleting potentially conflicting cluster: $cluster${NC}"
+                kind delete cluster --name "$cluster" 2>/dev/null || true
+            done
+            
+            # Also try to clean up any docker containers that might be leftover
+            echo -e "${YELLOW}Cleaning up any leftover KIND containers...${NC}"
+            docker ps -a --filter="label=io.x-k8s.kind.cluster" --format="{{.Names}}" | while read container; do
+                if [[ "$container" == *"tenant-controller"* ]] || [[ "$container" == *"test"* ]]; then
+                    echo -e "${YELLOW}Removing container: $container${NC}"
+                    docker rm -f "$container" 2>/dev/null || true
+                fi
+            done
+            
+            sleep 3
+        fi
+        
+        retry=$((retry + 1))
+        if [ $retry -le $max_retries ]; then
+            sleep 5
+        fi
+    done
+    
+    echo -e "${RED}Failed to create cluster after $max_retries attempts${NC}"
+    
+    # Clean up temporary config file if it exists
+    if [ -f "/tmp/kind-config-${CLUSTER_NAME}.yaml" ]; then
+        rm -f "/tmp/kind-config-${CLUSTER_NAME}.yaml"
+    fi
+    
+    return 1
+}
 
 if kind get clusters | grep -q "^${CLUSTER_NAME}$"; then
     echo -e "${YELLOW}Test cluster ${CLUSTER_NAME} already exists, checking context...${NC}"
@@ -48,24 +151,12 @@ if kind get clusters | grep -q "^${CLUSTER_NAME}$"; then
     if ! kubectl config get-contexts -o name | grep -q "kind-${CLUSTER_NAME}"; then
         echo -e "${YELLOW}Context for ${CLUSTER_NAME} missing, recreating...${NC}"
         kind delete cluster --name "$CLUSTER_NAME"
-        echo -e "${YELLOW}Creating KIND cluster: ${CLUSTER_NAME}${NC}"
-        if [ -f "$CONFIG_FILE" ]; then
-            kind create cluster --name "$CLUSTER_NAME" --config "$CONFIG_FILE" --wait 300s
-        else
-            echo -e "${YELLOW}Config file $CONFIG_FILE not found, creating cluster with default settings${NC}"
-            kind create cluster --name "$CLUSTER_NAME" --wait 300s
-        fi
+        create_cluster
     else
         echo -e "${GREEN}Test cluster and context already exist, using existing setup${NC}"
     fi
 else
-    echo -e "${YELLOW}Creating KIND cluster: ${CLUSTER_NAME}${NC}"
-    if [ -f "$CONFIG_FILE" ]; then
-        kind create cluster --name "$CLUSTER_NAME" --config "$CONFIG_FILE" --wait 300s
-    else
-        echo -e "${YELLOW}Config file $CONFIG_FILE not found, creating cluster with default settings${NC}"
-        kind create cluster --name "$CLUSTER_NAME" --wait 300s
-    fi
+    create_cluster
 fi
 
 # Set kubectl context to our test cluster
@@ -161,6 +252,11 @@ test_service_via_kubectl() {
 test_service_via_kubectl "Harbor" "harbor" "mock-harbor" "/api/v2.0/health"
 test_service_via_kubectl "Keycloak" "keycloak" "mock-keycloak" "/health"
 test_service_via_kubectl "Catalog" "orch-app" "mock-catalog" "/health"
+
+# Clean up temporary config file if it exists
+if [ -f "/tmp/kind-config-${CLUSTER_NAME}.yaml" ]; then
+    rm -f "/tmp/kind-config-${CLUSTER_NAME}.yaml"
+fi
 
 echo -e "${GREEN}Component test environment setup complete!${NC}"
 echo -e "${GREEN}Services are deployed and accessible via kubectl port-forward${NC}"
