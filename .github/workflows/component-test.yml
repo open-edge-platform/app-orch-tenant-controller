@@ -1,0 +1,144 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+name: Component Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  # Test environment configuration
+  HARBOR_SERVER: https://harbor.kind.internal
+  HARBOR_NAMESPACE: harbor
+  HARBOR_ADMIN_CREDENTIAL: admin-secret
+  KEYCLOAK_SERVER: https://keycloak.kind.internal
+  KEYCLOAK_NAMESPACE: keycloak
+  KEYCLOAK_SECRET: keycloak-secret
+  VAULT_SERVER: https://vault.kind.internal
+  CATALOG_SERVER: https://catalog.kind.internal
+  ADM_SERVER: https://adm.kind.internal
+  RS_ROOT_URL: oci://registry.kind.internal
+  RS_PROXY_ROOT_URL: https://registry.kind.internal
+  MANIFEST_PATH: /manifests
+  MANIFEST_TAG: latest
+  REGISTRY_HOST_EXTERNAL: https://harbor.kind.internal
+  SERVICE_ACCOUNT: default
+
+jobs:
+  component-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    strategy:
+      matrix:
+        go-version: ['1.21', '1.22']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go ${{ matrix.go-version }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
+
+    - name: Create KinD cluster
+      uses: helm/kind-action@v1.10.0
+      with:
+        cluster_name: kind
+        config: .github/workflows/kind-config.yaml
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v4
+      with:
+        version: 'v1.29.0'
+
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: '3.13.0'
+
+    - name: Set up test infrastructure
+      run: |
+        # Install required CRDs and services for testing
+        kubectl create namespace harbor --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create namespace keycloak --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create namespace orch-app --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Create mock services for testing
+        kubectl apply -f .github/workflows/test-services.yaml
+
+    - name: Wait for test infrastructure
+      run: |
+        # Wait for mock services to be ready
+        kubectl wait --for=condition=available --timeout=300s deployment/mock-harbor -n harbor
+        kubectl wait --for=condition=available --timeout=300s deployment/mock-keycloak -n keycloak
+        kubectl wait --for=condition=available --timeout=300s deployment/mock-catalog -n orch-app
+
+    - name: Set up port forwarding
+      run: |
+        # Set up port forwarding for test services
+        kubectl port-forward -n harbor svc/mock-harbor 8080:80 &
+        kubectl port-forward -n keycloak svc/mock-keycloak 8081:80 &
+        kubectl port-forward -n orch-app svc/mock-catalog 8082:80 &
+        sleep 10  # Give port forwarding time to establish
+
+    - name: Download dependencies
+      run: |
+        go mod download
+        go mod vendor
+
+    - name: Build application
+      run: |
+        make go-build
+
+    - name: Run unit tests
+      run: |
+        make go-test
+
+    - name: Run component tests
+      run: |
+        make component-test
+
+    - name: Run component tests with coverage
+      run: |
+        make component-test-coverage
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.xml,./component-coverage.xml
+        flags: component-tests
+        name: component-coverage
+        fail_ci_if_error: false
+
+    - name: Archive test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: component-test-results-go${{ matrix.go-version }}
+        path: |
+          coverage.xml
+          component-coverage.xml
+          *.log
+
+    - name: Cleanup
+      if: always()
+      run: |
+        # Kill port forwarding processes
+        pkill -f "kubectl port-forward" || true
+        # Additional cleanup if needed
+        kubectl delete namespace harbor keycloak orch-app --ignore-not-found=true

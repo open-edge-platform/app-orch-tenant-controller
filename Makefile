@@ -135,10 +135,17 @@ lint: yamllint go-lint hadolint mdlint ## Runs lint stage
 .PHONY: test
 test: go-test ## Runs test stage
 
-.PHONY: coverage
-coverage: go-cover-dependency ## Runs coverage stage
-	$(GOCMD) test -gcflags=-l `go list $(PKG)/cmd/... $(PKG)/internal/... | grep -v "/mocks" | grep -v "/test/"` -v -coverprofile=coverage.txt -covermode count
-	${GOPATH}/bin/gocover-cobertura < coverage.txt > coverage.xml
+## Component testing targets
+.PHONY: component-test
+
+component-test: ## Run component tests
+	@echo "---COMPONENT TESTS---"
+	@./test/scripts/setup-test-env.sh
+	@trap './test/scripts/cleanup-test-env.sh' EXIT; \
+	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 2m -v -p 1 -parallel 10 \
+	-coverprofile=component-coverage.txt -covermode=atomic ./test/component/... \
+	| tee >(go-junit-report -set-exit-code > component-test-report.xml)
+	@echo "---END COMPONENT TESTS---"
 
 .PHONY: list
 list: ## displays make targets

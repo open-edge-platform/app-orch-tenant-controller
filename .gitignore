@@ -7,6 +7,7 @@ bin/
 vendor/
 build/_output/
 coverage.*
+component-coverage.*
 venv-env/
 ci/
 artifacts/
