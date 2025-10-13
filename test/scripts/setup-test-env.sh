@@ -10,9 +10,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Configurable timeouts via environment variables
+# Configurable timeouts and retry settings via environment variables
 PORT_FORWARD_TIMEOUT=${PORT_FORWARD_TIMEOUT:-30}
 CURL_TIMEOUT=${CURL_TIMEOUT:-5}
+MAX_CLUSTER_CREATION_RETRIES=${MAX_CLUSTER_CREATION_RETRIES:-3}
+MAX_SERVICE_CHECK_ATTEMPTS=${MAX_SERVICE_CHECK_ATTEMPTS:-5}
+PORT_FORWARD_SLEEP_TIME=${PORT_FORWARD_SLEEP_TIME:-3}
 
 echo -e "${GREEN}Setting up component test environment...${NC}"
 
@@ -53,7 +56,7 @@ find_available_port() {
     local max_port=6500
     
     for port in $(seq $start_port $max_port); do
-        if ! netstat -tlnp 2>/dev/null | grep -q ":$port "; then
+        if ! ss -tlnp 2>/dev/null | grep -q ":$port "; then
             echo "$port"
             return 0
         fi
@@ -62,23 +65,64 @@ find_available_port() {
     echo "6444"  # fallback
 }
 
-# In CI environments, dynamically assign API server port to avoid conflicts
-if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
-    AVAILABLE_API_PORT=$(find_available_port)
-    echo -e "${YELLOW}Using API server port: ${AVAILABLE_API_PORT}${NC}"
+# Function to find available host ports for services
+find_available_host_ports() {
+    local base_port_1=8080
+    local base_port_2=8081
+    local base_port_3=8082
+    local max_attempts=50
     
-    # Create a temporary config file with the available port
-    TEMP_CONFIG="/tmp/kind-config-${CLUSTER_NAME}.yaml"
-    if [ -f "$CONFIG_FILE" ]; then
-        # Replace the apiServerPort in the config
-        sed "s/apiServerPort: [0-9]*/apiServerPort: ${AVAILABLE_API_PORT}/" "$CONFIG_FILE" > "$TEMP_CONFIG"
-        CONFIG_FILE="$TEMP_CONFIG"
+    # Check if default ports are available
+    if ! ss -tlnp 2>/dev/null | grep -q ":${base_port_1} " && \
+       ! ss -tlnp 2>/dev/null | grep -q ":${base_port_2} " && \
+       ! ss -tlnp 2>/dev/null | grep -q ":${base_port_3} "; then
+        echo "${base_port_1},${base_port_2},${base_port_3}"
+        return 0
     fi
+    
+    # Find alternative ports
+    for offset in $(seq 0 $max_attempts); do
+        local port_1=$((base_port_1 + offset * 10))
+        local port_2=$((base_port_2 + offset * 10))
+        local port_3=$((base_port_3 + offset * 10))
+        
+        if ! ss -tlnp 2>/dev/null | grep -q ":${port_1} " && \
+           ! ss -tlnp 2>/dev/null | grep -q ":${port_2} " && \
+           ! ss -tlnp 2>/dev/null | grep -q ":${port_3} "; then
+            echo "${port_1},${port_2},${port_3}"
+            return 0
+        fi
+    done
+    
+    # Fallback to default ports
+    echo "${base_port_1},${base_port_2},${base_port_3}"
+}
+
+# Always check for port conflicts, not just in CI
+AVAILABLE_API_PORT=$(find_available_port)
+echo -e "${YELLOW}Using API server port: ${AVAILABLE_API_PORT}${NC}"
+
+# Find available host ports for service NodePorts
+HOST_PORTS=$(find_available_host_ports)
+IFS=',' read -r HOST_PORT_1 HOST_PORT_2 HOST_PORT_3 <<< "$HOST_PORTS"
+echo -e "${YELLOW}Using host ports: ${HOST_PORT_1}, ${HOST_PORT_2}, ${HOST_PORT_3}${NC}"
+
+# Create a temporary config file with available ports
+TEMP_CONFIG="/tmp/kind-config-${CLUSTER_NAME}.yaml"
+if [ -f "$CONFIG_FILE" ]; then
+    # Replace ports in the config file
+    sed -e "s/apiServerPort: [0-9]*/apiServerPort: ${AVAILABLE_API_PORT}/" \
+        -e "s/hostPort: 8080/hostPort: ${HOST_PORT_1}/" \
+        -e "s/hostPort: 8081/hostPort: ${HOST_PORT_2}/" \
+        -e "s/hostPort: 8082/hostPort: ${HOST_PORT_3}/" \
+        "$CONFIG_FILE" > "$TEMP_CONFIG"
+    CONFIG_FILE="$TEMP_CONFIG"
+    echo -e "${YELLOW}Created temporary config file: ${TEMP_CONFIG}${NC}"
 fi
 
 # Function to create cluster with retry logic
 create_cluster() {
-    local max_retries=3
+    local max_retries=$MAX_CLUSTER_CREATION_RETRIES
     local retry=1
     
     while [ $retry -le $max_retries ]; do
@@ -103,9 +147,9 @@ create_cluster() {
         if [ $retry -eq 1 ]; then
             echo -e "${YELLOW}Cleaning up any existing clusters that might cause port conflicts...${NC}"
             
-            # Show what's using common Kubernetes ports
+            # Show what's using common Kubernetes ports and our target ports
             echo -e "${YELLOW}Checking port usage:${NC}"
-            netstat -tlnp 2>/dev/null | grep -E ":6443|:6444" || true
+            ss -tlnp 2>/dev/null | grep -E ":6443|:6444|:${HOST_PORT_1:-8080}|:${HOST_PORT_2:-8081}|:${HOST_PORT_3:-8082}" || true
             
             # List all KIND clusters
             echo -e "${YELLOW}Current KIND clusters:${NC}"
@@ -117,6 +161,16 @@ create_cluster() {
                 kind delete cluster --name "$cluster" 2>/dev/null || true
             done
             
+            # Check if there's a generic "kind" cluster that might conflict
+            if kind get clusters 2>/dev/null | grep -q "^kind$" && [ "$CLUSTER_NAME" != "kind" ]; then
+                echo -e "${YELLOW}Found existing 'kind' cluster, checking if it conflicts...${NC}"
+                # Check if it has port mappings that conflict with ours
+                if docker ps --filter="label=io.x-k8s.kind.cluster=kind" --format="{{.Ports}}" | grep -E "${HOST_PORT_1:-8080}|${HOST_PORT_2:-8081}|${HOST_PORT_3:-8082}"; then
+                    echo -e "${YELLOW}Existing 'kind' cluster has conflicting port mappings, removing it...${NC}"
+                    kind delete cluster --name "kind" 2>/dev/null || true
+                fi
+            fi
+            
             # Also try to clean up any docker containers that might be leftover
             echo -e "${YELLOW}Cleaning up any leftover KIND containers...${NC}"
             docker ps -a --filter="label=io.x-k8s.kind.cluster" --format="{{.Names}}" | while read container; do
@@ -126,7 +180,7 @@ create_cluster() {
                 fi
             done
             
-            sleep 3
+            sleep 5
         fi
         
         retry=$((retry + 1))
@@ -221,10 +275,10 @@ test_service_via_kubectl() {
     local pf_pid=$!
     
     # Give port forward time to start
-    sleep 3
+    sleep ${PORT_FORWARD_SLEEP_TIME}
     
     # Test the endpoint with shorter timeout
-    local max_attempts=5
+    local max_attempts=$MAX_SERVICE_CHECK_ATTEMPTS
     local attempt=1
     local success=false
     

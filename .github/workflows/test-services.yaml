@@ -18,6 +18,13 @@ spec:
       labels:
         app: mock-harbor
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: mock-harbor
         image: nginx:alpine
@@ -131,6 +138,13 @@ spec:
       labels:
         app: mock-keycloak
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: mock-keycloak
         image: nginx:alpine
@@ -244,6 +258,13 @@ spec:
       labels:
         app: mock-catalog
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: mock-catalog
         image: nginx:alpine

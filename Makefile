@@ -142,7 +142,7 @@ component-test: ## Run component tests
 	@echo "---COMPONENT TESTS---"
 	@./test/scripts/setup-test-env.sh
 	@trap './test/scripts/cleanup-test-env.sh' EXIT; \
-	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 2m -v -p 1 -parallel 10 \
+	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 2m -v -p 1 -parallel 1 \
 	./test/component/... \
 	| tee >(go-junit-report -set-exit-code > component-test-report.xml)
 	@echo "---END COMPONENT TESTS---"
@@ -152,7 +152,7 @@ component-test-coverage: ## Run component tests with coverage
 	@echo "---COMPONENT TESTS WITH COVERAGE---"
 	@./test/scripts/setup-test-env.sh
 	@trap './test/scripts/cleanup-test-env.sh' EXIT; \
-	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 2m -v -p 1 -parallel 10 \
+	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 2m -v -p 1 -parallel 1 \
 	-coverprofile=component-coverage.txt -covermode=atomic ./test/component/... \
 	| tee >(go-junit-report -set-exit-code > component-test-report.xml)
 	@echo "---END COMPONENT TESTS WITH COVERAGE---"
