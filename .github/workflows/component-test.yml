@@ -59,7 +59,7 @@ jobs:
       uses: helm/kind-action@v1.10.0
       with:
         cluster_name: kind
-        config: .github/workflows/kind-config.yaml
+        config: test/config/kind-config.yaml
 
     - name: Install kubectl
       uses: azure/setup-kubectl@v4

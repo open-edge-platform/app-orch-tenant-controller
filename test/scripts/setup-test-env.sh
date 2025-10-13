@@ -10,6 +10,10 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Configurable timeouts via environment variables
+PORT_FORWARD_TIMEOUT=${PORT_FORWARD_TIMEOUT:-30}
+CURL_TIMEOUT=${CURL_TIMEOUT:-5}
+
 echo -e "${GREEN}Setting up component test environment...${NC}"
 
 # Check if KIND is available
@@ -36,7 +40,7 @@ fi
 
 # Check if our test cluster already exists
 CLUSTER_NAME=${KIND_CLUSTER_NAME:-"tenant-controller-test"}
-CONFIG_FILE=${KIND_CONFIG_FILE:-".github/workflows/kind-config.yaml"}
+CONFIG_FILE=${KIND_CONFIG_FILE:-"test/config/kind-config.yaml"}
 
 if kind get clusters | grep -q "^${CLUSTER_NAME}$"; then
     echo -e "${YELLOW}Test cluster ${CLUSTER_NAME} already exists, checking context...${NC}"
@@ -122,7 +126,7 @@ test_service_via_kubectl() {
     sleep 1
     
     # Start port forward in background with timeout
-    timeout 30s kubectl port-forward -n $namespace svc/$service $local_port:$service_port &
+    timeout ${PORT_FORWARD_TIMEOUT}s kubectl port-forward -n $namespace svc/$service $local_port:$service_port &
     local pf_pid=$!
     
     # Give port forward time to start
@@ -134,7 +138,7 @@ test_service_via_kubectl() {
     local success=false
     
     while [ $attempt -le $max_attempts ]; do
-        if timeout 5s curl -f -s http://localhost:$local_port$health_path > /dev/null 2>&1; then
+        if timeout ${CURL_TIMEOUT}s curl -f -s http://localhost:$local_port$health_path > /dev/null 2>&1; then
             echo -e "${GREEN}✓ $name service is ready${NC}"
             success=true
             break

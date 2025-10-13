@@ -22,13 +22,35 @@ spec:
       - name: mock-harbor
         image: nginx:alpine
         ports:
-        - containerPort: 80
+        - containerPort: 8080
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          runAsGroup: 65534
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
         volumeMounts:
         - name: config
           mountPath: /etc/nginx/nginx.conf
           subPath: nginx.conf
         - name: html
           mountPath: /usr/share/nginx/html
+        - name: nginx-cache
+          mountPath: /var/cache/nginx
+        - name: nginx-run
+          mountPath: /var/run
       volumes:
       - name: config
         configMap:
@@ -36,6 +58,10 @@ spec:
       - name: html
         configMap:
           name: mock-harbor-html
+      - name: nginx-cache
+        emptyDir: {}
+      - name: nginx-run
+        emptyDir: {}
 
 ---
 apiVersion: v1
@@ -49,7 +75,7 @@ spec:
     app: mock-harbor
   ports:
   - port: 80
-    targetPort: 80
+    targetPort: 8080
     nodePort: 30080
 
 ---
@@ -63,7 +89,7 @@ data:
     events {}
     http {
       server {
-        listen 80;
+        listen 8080;
         location /api/v2.0/health {
           return 200 '{"status":"healthy"}';
           add_header Content-Type application/json;
@@ -109,13 +135,35 @@ spec:
       - name: mock-keycloak
         image: nginx:alpine
         ports:
-        - containerPort: 80
+        - containerPort: 8080
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          runAsGroup: 65534
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
         volumeMounts:
         - name: config
           mountPath: /etc/nginx/nginx.conf
           subPath: nginx.conf
         - name: html
           mountPath: /usr/share/nginx/html
+        - name: nginx-cache
+          mountPath: /var/cache/nginx
+        - name: nginx-run
+          mountPath: /var/run
       volumes:
       - name: config
         configMap:
@@ -123,6 +171,10 @@ spec:
       - name: html
         configMap:
           name: mock-keycloak-html
+      - name: nginx-cache
+        emptyDir: {}
+      - name: nginx-run
+        emptyDir: {}
 
 ---
 apiVersion: v1
@@ -136,7 +188,7 @@ spec:
     app: mock-keycloak
   ports:
   - port: 80
-    targetPort: 80
+    targetPort: 8080
     nodePort: 30081
 
 ---
@@ -150,7 +202,7 @@ data:
     events {}
     http {
       server {
-        listen 80;
+        listen 8080;
         location /health {
           return 200 '{"status":"UP"}';
           add_header Content-Type application/json;
@@ -196,13 +248,35 @@ spec:
       - name: mock-catalog
         image: nginx:alpine
         ports:
-        - containerPort: 80
+        - containerPort: 8080
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          runAsGroup: 65534
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
         volumeMounts:
         - name: config
           mountPath: /etc/nginx/nginx.conf
           subPath: nginx.conf
         - name: html
           mountPath: /usr/share/nginx/html
+        - name: nginx-cache
+          mountPath: /var/cache/nginx
+        - name: nginx-run
+          mountPath: /var/run
       volumes:
       - name: config
         configMap:
@@ -210,6 +284,10 @@ spec:
       - name: html
         configMap:
           name: mock-catalog-html
+      - name: nginx-cache
+        emptyDir: {}
+      - name: nginx-run
+        emptyDir: {}
 
 ---
 apiVersion: v1
@@ -223,7 +301,7 @@ spec:
     app: mock-catalog
   ports:
   - port: 80
-    targetPort: 80
+    targetPort: 8080
     nodePort: 30082
 
 ---
@@ -237,7 +315,7 @@ data:
     events {}
     http {
       server {
-        listen 80;
+        listen 8080;
         location /health {
           return 200 '{"status":"healthy"}';
           add_header Content-Type application/json;

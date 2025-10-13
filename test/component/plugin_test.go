@@ -181,12 +181,15 @@ func (s *PluginComponentTests) testPluginWithUnavailableService(_ plugins.Event)
 
 	// Test with timeout wrapped in goroutine to prevent indefinite blocking
 	done := make(chan bool, 1)
+	panicChan := make(chan interface{}, 1)
 	var pluginErr error
 
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				s.T().Logf("Plugin operation panicked (expected with unreachable service): %v", r)
+				s.T().Logf("Plugin operation panicked (unexpected): %v", r)
+				panicChan <- r
+				return
 			}
 			done <- true
 		}()
@@ -203,14 +206,16 @@ func (s *PluginComponentTests) testPluginWithUnavailableService(_ plugins.Event)
 		pluginErr = err
 	}()
 
-	// Wait for completion or timeout
+	// Wait for completion, panic, or timeout
 	select {
 	case <-done:
 		if pluginErr != nil {
 			s.T().Logf("✓ Plugin handled unreachable service correctly: %v", pluginErr)
 		} else {
-			s.T().Log("✓ Plugin initialization succeeded (service might be mocked)")
+			s.T().Log("✓ Plugin completed without error (unexpected but not failure)")
 		}
+	case panicValue := <-panicChan:
+		s.T().Errorf("❌ Plugin panicked unexpectedly: %v", panicValue)
 	case <-time.After(8 * time.Second):
 		s.T().Log("✓ Plugin operation timed out as expected with unreachable service")
 	}
