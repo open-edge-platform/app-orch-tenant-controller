@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+---
+# Test values override for component testing
+
+# Local development mode - use local image but real service endpoints when available
+image:
+  registry:
+    name: null  # For local development
+  repository: app-orch-tenant-controller
+  tag: "0.4.3"
+  pullPolicy: Never  # Local development mode
+
+# Don't set global registry for local development
+global:
+  registry:
+    name: null
+
+configProvisioner:
+  # Use real service endpoints like catalog repo pattern
+  # These will work when services are available, or gracefully fail for local testing
+  keycloakServiceBase: "http://keycloak.orch-system.svc:8080"
+  vaultServer: "http://keycloak.orch-system.svc:8080"
+  keycloakServer: "http://keycloak.orch-system.svc:8080"
+  keycloakNamespace: "orch-system"
+  harborServer: "http://harbor-core.orch-harbor.svc:8080"
+  harborNamespace: "orch-harbor"
+  catalogServer: "catalog-service-rest-proxy.orch-app.svc:8081"
+  admServer: "catalog-service-rest-proxy.orch-app.svc:8081"
+  releaseServiceBase: "catalog-service-rest-proxy.orch-app.svc:8081"

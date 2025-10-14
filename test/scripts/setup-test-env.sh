@@ -221,13 +221,75 @@ echo -e "${YELLOW}Creating test namespaces...${NC}"
 kubectl create namespace harbor --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace keycloak --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace orch-app --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace orch-platform --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace orch-harbor --dry-run=client -o yaml | kubectl apply -f -
 
-# Deploy mock services
-echo -e "${YELLOW}Deploying mock services...${NC}"
-kubectl apply -f test/manifests/test-services.yaml
+# Create required service account and RBAC
+echo -e "${YELLOW}Creating service account and RBAC...${NC}"
+kubectl create serviceaccount orch-svc -n orch-app --dry-run=client -o yaml | kubectl apply -f -
 
-# Wait for services to be ready
-echo -e "${YELLOW}Waiting for mock services to be ready...${NC}"
+# Create minimal ClusterRole for tenant controller
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tenant-controller-role
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "configmaps", "namespaces"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+EOF
+
+# Create ClusterRoleBinding
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tenant-controller-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tenant-controller-role
+subjects:
+- kind: ServiceAccount
+  name: orch-svc
+  namespace: orch-app
+EOF
+
+# Build and load tenant controller image for local testing
+echo -e "${YELLOW}Building and loading tenant controller image...${NC}"
+make chart docker-build || {
+    echo -e "${RED}Failed to build tenant controller chart and image${NC}"
+    exit 1
+}
+
+# Load the image into KIND cluster for local testing
+echo -e "${YELLOW}Loading tenant controller image into KIND cluster...${NC}"
+VERSION=$(cat VERSION)
+kind load docker-image app-orch-tenant-controller:${VERSION} --name "${CLUSTER_NAME}" || {
+    echo -e "${RED}Failed to load Docker image into KIND cluster${NC}"
+    exit 1
+}
+
+# Deploy tenant controller with test values (hybrid approach: local image + real service endpoints)
+echo -e "${YELLOW}Deploying tenant controller via Helm chart...${NC}"
+
+# Install with test values override (hybrid approach)
+helm upgrade --install -n orch-app tenant-controller \
+    --wait --timeout 300s \
+    --set logging.rootLogger.level=DEBUG \
+    --set image.repository=app-orch-tenant-controller \
+    --set image.tag=${VERSION} \
+    --set image.pullPolicy=Never \
+    --set global.registry.name= \
+    -f test/manifests/test-values.yaml \
+    deploy/charts/app-orch-tenant-controller || {
+    echo -e "${RED}Failed to deploy tenant controller via Helm chart${NC}"
+    exit 1
+}
 
 # Function to wait for deployment
 wait_for_deployment() {
@@ -239,10 +301,8 @@ wait_for_deployment() {
     kubectl wait --for=condition=available --timeout=${timeout}s deployment/$deployment -n $namespace
 }
 
-# Wait for all deployments
-wait_for_deployment harbor mock-harbor
-wait_for_deployment keycloak mock-keycloak
-wait_for_deployment orch-app mock-catalog
+# Wait for tenant controller deployment to be ready
+wait_for_deployment orch-app tenant-controller-app-orch-tenant-controller
 
 # Test service connectivity
 echo -e "${YELLOW}Testing service connectivity...${NC}"
