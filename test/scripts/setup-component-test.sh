@@ -374,6 +374,10 @@ deploy_tenant_controller() {
     VERSION=$(cat VERSION)
     echo -e "${YELLOW}📋 Using version: ${VERSION}${NC}"
     
+    # Create vendor directory before Docker build
+    echo -e "${YELLOW}📦 Creating vendor directory...${NC}"
+    go mod vendor
+    
     # Build Docker image
     docker build -t "app-orch-tenant-controller:${VERSION}" -f build/Dockerfile .
     
@@ -547,7 +551,7 @@ verify_deployment() {
 # Print usage information
 print_usage_info() {
     echo ""
-    echo -e "${GREEN}🎉 TRUE VIP environment setup completed successfully!${NC}"
+    echo -e "${GREEN}🎉 Environment setup completed successfully!${NC}"
     echo ""
     echo -e "${BLUE}📋 Environment Information:${NC}"
     echo -e "  Cluster: ${CLUSTER_NAME}"

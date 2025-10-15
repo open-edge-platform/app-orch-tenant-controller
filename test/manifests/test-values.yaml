@@ -3,14 +3,12 @@
 
 ---
 # Test values override for component testing
-
-# Local development mode - use local image but real service endpoints when available
 image:
   registry:
-    name: null  # For local development
+    name: null
   repository: app-orch-tenant-controller
   tag: "0.4.3"
-  pullPolicy: Never  # Local development mode
+  pullPolicy: Never
 
 # Don't set global registry for local development
 global:
@@ -18,7 +16,6 @@ global:
     name: null
 
 configProvisioner:
-  # Use real service endpoints like catalog repo pattern
   # These will work when services are available, or gracefully fail for local testing
   keycloakServiceBase: "http://keycloak.orch-system.svc:8080"
   vaultServer: "http://keycloak.orch-system.svc:8080"

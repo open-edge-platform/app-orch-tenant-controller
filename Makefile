@@ -138,7 +138,7 @@ test: go-test ## Runs test stage
 ## Component testing targets
 .PHONY: component-test
 
-component-test: ## Run component tests using VIP pattern (like catalog repo)
+component-test: vendor ## Run component tests
 	@echo "---COMPONENT TESTS---"
 	@./test/scripts/setup-component-test.sh
 	@trap './test/scripts/cleanup-component-test.sh' EXIT; \
@@ -148,7 +148,7 @@ component-test: ## Run component tests using VIP pattern (like catalog repo)
 	@echo "---END COMPONENT TESTS---"
 
 .PHONY: component-test-coverage
-component-test-coverage: ## Run component tests with coverage
+component-test-coverage: vendor ## Run component tests with coverage
 	@echo "---COMPONENT TESTS WITH COVERAGE---"
 	@./test/scripts/setup-component-test.sh
 	@trap './test/scripts/cleanup-component-test.sh' EXIT; \

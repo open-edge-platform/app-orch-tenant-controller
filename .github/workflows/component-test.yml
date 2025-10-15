@@ -56,7 +56,7 @@ env:
 
 jobs:
   component-tests:
-    name: Component Tests (True VIP - No Mocking)
+    name: Component Tests
     runs-on: ubuntu-22.04
     timeout-minutes: 60
 
@@ -92,10 +92,10 @@ jobs:
           helm version
           docker version
 
-      - name: Run Component Tests (True VIP)
+      - name: Run Component Tests
         run: |
-          # Run component tests using true VIP environment (no mocking)
-          echo "🚀 Starting True VIP Component Tests..."
+          # Run component tests
+          echo "🚀 Starting Component Tests..."
           echo "📋 Using KIND cluster: ${{ env.KIND_CLUSTER_NAME }}"
           echo "🌐 Orchestrator domain: ${{ env.ORCH_DOMAIN }}"
           echo "🔧 EMF branch: ${{ env.EMF_BRANCH }}"
