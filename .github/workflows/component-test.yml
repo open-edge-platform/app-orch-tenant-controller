@@ -1,0 +1,136 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+name: Component Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      emf-branch:
+        description: 'EMF branch to use for deployment'
+        required: false
+        default: 'main'
+      kind-cluster-name:
+        description: 'KIND cluster name'
+        required: false
+        default: 'tenant-controller-test'
+      kind-cluster-version:
+        description: 'KIND cluster version'
+        required: false
+        default: 'v1.29.2'
+      helm-chart-timeout:
+        description: 'Helm chart timeout'
+        required: false
+        default: '600s'
+
+permissions:
+  contents: read
+
+env:
+  # Orchestrator domain configuration
+  ORCH_DOMAIN: "kind.internal"
+  AUTO_CERT: false
+  KIND_CLUSTER_NAME: "tenant-controller-test-${{ github.run_id }}"
+  EMF_BRANCH: ${{ github.event.inputs.emf-branch || 'main' }}
+  
+  # Real service endpoints (no mocking)
+  HARBOR_SERVER: https://harbor.kind.internal
+  HARBOR_NAMESPACE: harbor
+  HARBOR_ADMIN_CREDENTIAL: admin-secret
+  KEYCLOAK_SERVER: https://keycloak.kind.internal
+  KEYCLOAK_NAMESPACE: keycloak
+  KEYCLOAK_SECRET: keycloak-secret
+  VAULT_SERVER: https://vault.kind.internal
+  CATALOG_SERVER: https://catalog.kind.internal
+  ADM_SERVER: https://adm.kind.internal
+  RS_ROOT_URL: oci://registry.kind.internal
+  RS_PROXY_ROOT_URL: https://registry.kind.internal
+  MANIFEST_PATH: /manifests
+  MANIFEST_TAG: latest
+  REGISTRY_HOST_EXTERNAL: https://harbor.kind.internal
+  SERVICE_ACCOUNT: default
+
+jobs:
+  component-tests:
+    name: Component Tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout tenant controller repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          # Install KIND for local Kubernetes cluster
+          go install sigs.k8s.io/kind@v0.20.0
+          
+          # Install kubectl
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          
+          # Install Helm
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Verify tools installation
+        run: |
+          kind version
+          kubectl version --client
+          helm version
+          docker version
+
+      - name: Run Component Tests
+        run: |
+          # Run component tests
+          echo "🚀 Starting Component Tests..."
+          echo "📋 Using KIND cluster: ${{ env.KIND_CLUSTER_NAME }}"
+          echo "🌐 Orchestrator domain: ${{ env.ORCH_DOMAIN }}"
+          echo "🔧 EMF branch: ${{ env.EMF_BRANCH }}"
+          
+          # Execute component tests with VIP setup
+          make component-test
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: component-test-results
+          path: |
+            component-test-report.xml
+
+      - name: Upload test logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: component-test-logs
+          path: |
+            /tmp/kind-*.log
+
+      - name: Cleanup on failure
+        if: failure()
+        run: |
+          # Cleanup component test environment
+          ./test/scripts/cleanup-component-test.sh || true
+          
+          # Get cluster logs for debugging
+          kubectl cluster-info dump --output-directory=/tmp/cluster-dump || true
+
+      - name: Upload cluster dump on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cluster-dump
+          path: /tmp/cluster-dump
