@@ -75,7 +75,7 @@ all: build go-lint test
 
 # Yamllint variables
 YAML_FILES         := $(shell find . -type f \( -name '*.yaml' -o -name '*.yml' \) -print )
-YAML_IGNORE        := .cache, vendor, ci, .github/workflows, $(VENV_NAME), internal/plugins/testdata/extensions/*.yaml
+YAML_IGNORE        := .cache, vendor, ci, .github/workflows, $(VENV_NAME), internal/plugins/testdata/extensions/*.yaml, deploy/charts/*/templates/*
 
 MAKEDIR          := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
@@ -138,11 +138,11 @@ test: go-test ## Runs test stage
 ## Component testing targets
 .PHONY: component-test
 
-component-test: ## Run component tests
+component-test: ## Run component tests using VIP pattern (like catalog repo)
 	@echo "---COMPONENT TESTS---"
-	@./test/scripts/setup-test-env.sh
-	@trap './test/scripts/cleanup-test-env.sh' EXIT; \
-	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 2m -v -p 1 -parallel 1 \
+	@./test/scripts/setup-component-test.sh
+	@trap './test/scripts/cleanup-component-test.sh' EXIT; \
+	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 5m -v -p 1 -parallel 1 \
 	./test/component/... \
 	| tee >(go-junit-report -set-exit-code > component-test-report.xml)
 	@echo "---END COMPONENT TESTS---"
@@ -150,9 +150,9 @@ component-test: ## Run component tests
 .PHONY: component-test-coverage
 component-test-coverage: ## Run component tests with coverage
 	@echo "---COMPONENT TESTS WITH COVERAGE---"
-	@./test/scripts/setup-test-env.sh
-	@trap './test/scripts/cleanup-test-env.sh' EXIT; \
-	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 2m -v -p 1 -parallel 1 \
+	@./test/scripts/setup-component-test.sh
+	@trap './test/scripts/cleanup-component-test.sh' EXIT; \
+	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 5m -v -p 1 -parallel 1 \
 	-coverprofile=component-coverage.txt -covermode=atomic ./test/component/... \
 	| tee >(go-junit-report -set-exit-code > component-test-report.xml)
 	@echo "---END COMPONENT TESTS WITH COVERAGE---"

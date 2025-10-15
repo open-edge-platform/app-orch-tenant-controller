@@ -5,45 +5,88 @@ package portforward
 
 import (
 	"fmt"
+	"log"
 	"os/exec"
+	"sync"
 	"time"
 )
 
-const (
-	// Service and namespace for port forwarding to tenant controller
-	PortForwardServiceNamespace = "orch-app"
-	PortForwardService          = "svc/app-orch-tenant-controller"
-	PortForwardLocalPort        = "8081"
-	PortForwardRemotePort       = "8081"
-	PortForwardAddress          = "0.0.0.0"
+// Global registry for port forward processes
+var (
+	portForwardRegistry = make(map[string]*exec.Cmd)
+	registryMutex       sync.Mutex
 )
 
-// KillPortForwardToTenantController kills the port forwarding process to tenant controller service
-func KillPortForwardToTenantController(cmd *exec.Cmd) error {
-	fmt.Println("Killing port forward process to app-orch-tenant-controller")
-	if cmd != nil && cmd.Process != nil {
-		return cmd.Process.Kill()
+// SetupTenantController sets up port forwarding to deployed tenant controller
+func SetupTenantController(namespace string, localPort, remotePort int) error {
+	return setupPortForward("tenant-controller", namespace, "app-orch-tenant-controller", localPort, remotePort)
+}
+
+// SetupKeycloak sets up port forwarding to deployed Keycloak
+func SetupKeycloak(namespace string, localPort, remotePort int) error {
+	return setupPortForward("keycloak", namespace, "keycloak", localPort, remotePort)
+}
+
+// SetupHarbor sets up port forwarding to deployed Harbor
+func SetupHarbor(namespace string, localPort, remotePort int) error {
+	return setupPortForward("harbor", namespace, "harbor-core", localPort, remotePort)
+}
+
+// SetupCatalog sets up port forwarding to deployed Catalog
+func SetupCatalog(namespace string, localPort, remotePort int) error {
+	return setupPortForward("catalog", namespace, "catalog", localPort, remotePort)
+}
+
+// setupPortForward establishes kubectl port-forward to deployed service
+func setupPortForward(serviceName, namespace, k8sServiceName string, localPort, remotePort int) error {
+	registryMutex.Lock()
+	defer registryMutex.Unlock()
+
+	log.Printf("Setting up port forwarding to %s service", serviceName)
+
+	// Kill existing port forward if any
+	if cmd, exists := portForwardRegistry[serviceName]; exists && cmd.Process != nil {
+		_ = cmd.Process.Kill()
+		delete(portForwardRegistry, serviceName)
 	}
+
+	// Create kubectl port-forward command to service
+	// #nosec G204 -- This is test code with controlled input
+	cmd := exec.Command("kubectl", "port-forward",
+		"-n", namespace,
+		fmt.Sprintf("svc/%s", k8sServiceName),
+		fmt.Sprintf("%d:%d", localPort, remotePort))
+
+	// Start port forwarding to service
+	err := cmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start port forwarding to %s: %v", serviceName, err)
+	}
+
+	// Register the process
+	portForwardRegistry[serviceName] = cmd
+
+	// Give time for port forwarding to establish
+	time.Sleep(3 * time.Second)
+
+	log.Printf("Port forwarding to %s established on localhost:%d", serviceName, localPort)
 	return nil
 }
 
-// ToTenantController sets up port forwarding to deployed tenant controller service
-// This follows the VIP pattern for component testing
-func ToTenantController() (*exec.Cmd, error) {
-	fmt.Println("Setting up port forward to app-orch-tenant-controller")
+// Cleanup kills all port forwarding processes
+func Cleanup() {
+	registryMutex.Lock()
+	defer registryMutex.Unlock()
 
-	// #nosec G204 - command arguments are safe constants defined in types package
-	cmd := exec.Command("kubectl", "port-forward", "-n", PortForwardServiceNamespace, PortForwardService,
-		fmt.Sprintf("%s:%s", PortForwardLocalPort, PortForwardRemotePort),
-		"--address", PortForwardAddress)
+	log.Printf("Cleaning up all port forwarding processes")
 
-	err := cmd.Start()
-	if err != nil {
-		return nil, fmt.Errorf("failed to start port forwarding: %v", err)
+	for serviceName, cmd := range portForwardRegistry {
+		if cmd.Process != nil {
+			log.Printf("Killing port forward to %s", serviceName)
+			_ = cmd.Process.Kill()
+		}
 	}
 
-	// Give time for port forwarding to establish
-	time.Sleep(5 * time.Second)
-
-	return cmd, nil
+	// Clear registry
+	portForwardRegistry = make(map[string]*exec.Cmd)
 }

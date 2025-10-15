@@ -43,9 +43,13 @@ spec:
       - name: config-provisioner
         {{- $appVersion := .Chart.AppVersion }}
         {{- with .Values.image }}
-        image: "{{- if hasKey $registry "name" }}{{ $registry.name }}/{{- end -}}{{ .repository }}:{{ default $appVersion .tag }}"
+        image: "{{- if and (hasKey $registry "name") $registry.name }}{{ $registry.name }}/{{- end -}}{{ .repository }}:{{ default $appVersion .tag }}"
         {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 8081
+          name: grpc-health
+          protocol: TCP
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
         livenessProbe:
