@@ -5,10 +5,6 @@ name: Component Tests
 on:
   pull_request:
     types: [labeled]
-  push:
-    branches:
-      - 'feature/component-test-*'
-      - 'test/component-*'
   schedule:
     - cron: "0 0 * * *" # Run every day at midnight
   workflow_dispatch:  # Run on manual trigger
@@ -17,12 +13,12 @@ on:
         description: 'Run component tests'
         required: true
         type: boolean
-        default: false
+        default: true
       emf-branch:
         description: 'The branch, tag or SHA to checkout EMF'
         required: true
         type: string
-        default: 'main'
+        default: main
 
 permissions:
   contents: read
@@ -31,33 +27,84 @@ jobs:
   component-tests:
     name: Deploy Kind Orchestrator and Run Component Tests
     if: |
-      github.event_name == 'schedule' || 
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push' ||
-      (github.event_name == 'pull_request' && contains(github.event.label.name, 'run-component-tests'))
-    runs-on: ${{ github.repository_owner == 'intel' && 'intel-ubuntu-latest' || 'ubuntu-latest' }} # Use standard runners
+      ${{ inputs.run-component-tests || github.event_name == 'schedule' || github.event.label.name == 'run-component-tests' }}
+    runs-on: ubuntu-24.04-16core-64GB # ubuntu-24.04-4core-16GB ubuntu-22.04-32core-128GB & ubuntu-24.04-16core-64GB
     timeout-minutes: 60
     env:
-      ORCH_DEFAULT_PASSWORD: ${{ secrets.ORCH_DEFAULT_PASSWORD }}
+      ORCH_DEFAULT_PASSWORD: 'ChangeMeOn1stLogin!'
       CODER_DIR: ${{ github.workspace }}
 
     steps:
-      - name: Deploy Kind Orchestrator
+      - name: Verify required secrets and environment
+        run: |
+          echo "Using fallback authentication approach..."
+          echo "✅ ORCH_DEFAULT_PASSWORD: Using hardcoded fallback 'ChangeMeOn1stLogin!' (meets 14+ char requirement)"
+          echo "ℹ️  Docker Hub credentials: Skipped (not required for public images)"
+          
+          if [ -z "${{ secrets.SYS_ORCH_GITHUB }}" ]; then
+            echo "❌ ERROR: secrets.SYS_ORCH_GITHUB is not set"
+            exit 1
+          else
+            echo "✅ secrets.SYS_ORCH_GITHUB is available"
+          fi
+          
+          echo "Environment setup complete!"
+
+      - name: Deploy Kind Orchestrator (with fallback authentication)
         id: deploy-kind-orchestrator
-        uses: open-edge-platform/edge-manageability-framework/.github/actions/deploy_kind@main
+        uses: open-edge-platform/edge-manageability-framework/.github/actions/deploy_kind@e8ae6a389d133948435aacbd38de90d952b1e05e
         timeout-minutes: 45
         with:
           orch_version: ${{ inputs.emf-branch || 'main' }}
-          orch_password: ${{ secrets.ORCH_DEFAULT_PASSWORD }}
-          docker_username: ${{ secrets.SYS_DOCKERHUB_USERNAME }}
-          docker_password: ${{ secrets.SYS_DOCKERHUB_RO }}
+          orch_password: 'ChangeMeOn1stLogin!'
+          # Skip Docker Hub credentials since they're not available
+          # docker_username: ${{ secrets.SYS_DOCKERHUB_USERNAME }}
+          # docker_password: ${{ secrets.SYS_DOCKERHUB_RO }}
           token: ${{ secrets.SYS_ORCH_GITHUB }}
           deployment_type: 'all'
+        env:
+          # Provide a default password since secret is not available
+          ORCH_DEFAULT_PASSWORD: 'ChangeMeOn1stLogin!'
+
+      - name: Configure kubectl for Kind cluster
+        run: |
+          # First check if kubectl is already configured by the EMF action
+          echo "Testing current kubectl configuration..."
+          if kubectl cluster-info 2>/dev/null; then
+            echo "✅ kubectl is already configured by EMF action!"
+            kubectl get nodes
+          else
+            echo "kubectl not configured, trying to configure manually..."
+            
+            # List all Kind clusters to see what's available
+            echo "Available Kind clusters:"
+            kind get clusters
+            
+            # Try to find the cluster name automatically
+            CLUSTER_NAME=$(kind get clusters | head -n 1)
+            if [ -z "$CLUSTER_NAME" ]; then
+              echo "❌ No Kind clusters found!"
+              exit 1
+            fi
+            
+            echo "Using Kind cluster: $CLUSTER_NAME"
+            
+            # Configure kubectl for the Kind cluster
+            kind get kubeconfig --name "$CLUSTER_NAME" > /tmp/kubeconfig
+            export KUBECONFIG=/tmp/kubeconfig
+            echo "KUBECONFIG=/tmp/kubeconfig" >> $GITHUB_ENV
+            
+            # Verify connection
+            echo "Verifying kubectl connection..."
+            kubectl cluster-info
+            kubectl get nodes
+          fi
+          echo "kubectl configuration successful!"
 
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24.1'
+          go-version: '1.24.6'
           cache: true
 
       - name: Checkout app-orch-tenant-controller repository
@@ -139,15 +186,17 @@ jobs:
         env:
           PATH: ${{ env.PATH }}:${{ env.GOPATH }}/bin
         run: |
+          echo "Updating Go module dependencies..."
+          go mod tidy
+          echo "Running component tests..."
           make component-test
           echo "Component tests done!"
 
       - name: Report
         uses: becheran/go-testreport@main
         with:
-          input: app-orch-tenant-controller/test/test-report.json
-          output: app-orch-tenant-controller/test/${{ github.event_name }}-${{ github.event.number }}-test-report.html
-          template: app-orch-tenant-controller/test/template.html
+          input: app-orch-tenant-controller/component-test-report.xml
+          output: app-orch-tenant-controller/${{ github.event_name }}-${{ github.event.number }}-test-report.html
 
       # Several diagnostic commands to run in case of failure. Collect all the argo
       # application state and describe all the pods.
@@ -177,7 +226,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-report
-          path: app-orch-tenant-controller/test/${{ github.event_name }}-${{ github.event.number }}-test-report.html
+          path: app-orch-tenant-controller/${{ github.event_name }}-${{ github.event.number }}-test-report.html
           retention-days: 14
 
       # collect app orch tenant controller logs in case of failure
