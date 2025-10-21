@@ -434,6 +434,8 @@ func (suite *ComponentTestSuite) testRealCatalogAccess() {
 }
 
 // testCreateTenantProjectWorkflow tests the creation of a tenant project
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) testCreateTenantProjectWorkflow() {
 	log.Printf("Testing tenant project creation workflow")
 
@@ -461,6 +463,8 @@ func (suite *ComponentTestSuite) testCreateTenantProjectWorkflow() {
 }
 
 // createHarborProject simulates Harbor project creation
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) createHarborProject(event plugins.Event) {
 	log.Printf("Creating Harbor project for tenant")
 
@@ -497,6 +501,8 @@ func (suite *ComponentTestSuite) createHarborProject(event plugins.Event) {
 }
 
 // createHarborRobot simulates Harbor robot creation for catalog access
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) createHarborRobot(projectName string) {
 	log.Printf("Creating Harbor robot for project: %s", projectName)
 
@@ -527,6 +533,8 @@ func (suite *ComponentTestSuite) createHarborRobot(projectName string) {
 }
 
 // createCatalogRegistries simulates catalog registry creation for all 4 registries per README
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) createCatalogRegistries(event plugins.Event) {
 	log.Printf("Creating Catalog registries for tenant (4 registries per README)")
 
@@ -579,6 +587,8 @@ func (suite *ComponentTestSuite) createCatalogRegistries(event plugins.Event) {
 }
 
 // createCatalogRegistry creates a single registry in the catalog
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) createCatalogRegistry(registryData map[string]interface{}) {
 	jsonData, err := json.Marshal(registryData)
 	suite.Require().NoError(err, "Should marshal catalog registry data")
@@ -766,6 +776,8 @@ func (suite *ComponentTestSuite) testRealServiceCommunication() {
 }
 
 // testVerifyTenantResourcesCreated verifies that tenant resources were actually created
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) testVerifyTenantResourcesCreated() {
 	log.Printf("Verifying tenant resources were created")
 
@@ -784,6 +796,8 @@ func (suite *ComponentTestSuite) testVerifyTenantResourcesCreated() {
 }
 
 // verifyHarborProjectExists checks if Harbor project was created
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) verifyHarborProjectExists(projectName string) {
 	log.Printf("Verifying Harbor project exists: %s", projectName)
 
@@ -804,6 +818,8 @@ func (suite *ComponentTestSuite) verifyHarborProjectExists(projectName string) {
 }
 
 // verifyHarborRobotExists checks if Harbor robot was created
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) verifyHarborRobotExists(projectName string) {
 	log.Printf("Verifying Harbor robot exists for project: %s", projectName)
 
@@ -819,6 +835,8 @@ func (suite *ComponentTestSuite) verifyHarborRobotExists(projectName string) {
 }
 
 // verifyCatalogRegistriesExist checks if catalog registries were created
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) verifyCatalogRegistriesExist() {
 	log.Printf("Verifying catalog registries exist")
 
@@ -848,6 +866,8 @@ func (suite *ComponentTestSuite) verifyCatalogRegistriesExist() {
 }
 
 // testDeleteTenantProjectWorkflow tests tenant project deletion
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) testDeleteTenantProjectWorkflow() {
 	log.Printf("Testing tenant project deletion workflow")
 
@@ -872,6 +892,8 @@ func (suite *ComponentTestSuite) testDeleteTenantProjectWorkflow() {
 }
 
 // deleteHarborProject simulates Harbor project deletion
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) deleteHarborProject(event plugins.Event) {
 	log.Printf("Deleting Harbor project for tenant")
 
@@ -896,6 +918,8 @@ func (suite *ComponentTestSuite) deleteHarborProject(event plugins.Event) {
 }
 
 // deleteCatalogProject simulates catalog project deletion
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) deleteCatalogProject(event plugins.Event) {
 	log.Printf("Deleting Catalog project resources for tenant")
 
@@ -918,6 +942,8 @@ func (suite *ComponentTestSuite) deleteCatalogProject(event plugins.Event) {
 }
 
 // testVerifyTenantResourcesDeleted verifies that tenant resources were cleaned up
+//
+//nolint:unused // Test helper function - keeping for potential future use
 func (suite *ComponentTestSuite) testVerifyTenantResourcesDeleted() {
 	log.Printf("Verifying tenant resources were deleted")
 

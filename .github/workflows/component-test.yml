@@ -5,6 +5,10 @@ name: Component Tests
 on:
   pull_request:
     types: [labeled]
+  push:
+    branches:
+      - 'feature/component-test-*'
+      - 'test/component-*'
   schedule:
     - cron: "0 0 * * *" # Run every day at midnight
   workflow_dispatch:  # Run on manual trigger
@@ -27,7 +31,10 @@ jobs:
   component-tests:
     name: Deploy Kind Orchestrator and Run Component Tests
     if: |
-      ${{ inputs.run-component-tests || github.event_name == 'schedule' || github.event.label.name == 'run-component-tests' }}
+      github.event_name == 'schedule' || 
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && contains(github.event.label.name, 'run-component-tests'))
     runs-on: ubuntu-24.04-16core-64GB # Following catalog pattern for sufficient resources
     timeout-minutes: 60
     env:
@@ -87,6 +94,7 @@ jobs:
           asdf install kind 0.29.0
           asdf install kubectl 1.33.2
           asdf install yq 4.45.4
+          go install github.com/jstemmer/go-junit-report@latest
 
       - name: Redeploy and Rebuild app-orch-tenant-controller
         working-directory: app-orch-tenant-controller
@@ -127,11 +135,11 @@ jobs:
           fi
 
       - name: Run Tenant Controller Component Tests
-        working-directory: app-orch-tenant-controller/test
+        working-directory: app-orch-tenant-controller
         env:
           PATH: ${{ env.PATH }}:${{ env.GOPATH }}/bin
         run: |
-          make component-tests
+          make component-test
           echo "Component tests done!"
 
       - name: Report

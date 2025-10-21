@@ -141,7 +141,7 @@ test: go-test ## Runs test stage
 component-test: vendor ## Run component tests against VIP orchestrator
 	@echo "---VIP ORCHESTRATOR COMPONENT TESTS---"
 	@echo "🚀 Running component tests against deployed VIP orchestrator..."
-	@./test/scripts/setup-vip-component-test.sh
+	@./test/scripts/setup-component-test.sh
 	@trap './test/scripts/cleanup-component-test.sh' EXIT; \
 	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 45m -v -p 1 -parallel 1 \
 	./test/component/... \

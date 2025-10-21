@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Component Test Utilities
 
 This directory contains utility packages that support component testing following the catalog repository pattern.
