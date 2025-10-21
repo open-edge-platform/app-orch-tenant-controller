@@ -138,14 +138,15 @@ test: go-test ## Runs test stage
 ## Component testing targets
 .PHONY: component-test
 
-component-test: vendor ## Run component tests
-	@echo "---COMPONENT TESTS---"
-	@./test/scripts/setup-component-test.sh
+component-test: vendor ## Run component tests against VIP orchestrator
+	@echo "---VIP ORCHESTRATOR COMPONENT TESTS---"
+	@echo "🚀 Running component tests against deployed VIP orchestrator..."
+	@./test/scripts/setup-vip-component-test.sh
 	@trap './test/scripts/cleanup-component-test.sh' EXIT; \
-	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 5m -v -p 1 -parallel 1 \
+	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 45m -v -p 1 -parallel 1 \
 	./test/component/... \
 	| tee >(go-junit-report -set-exit-code > component-test-report.xml)
-	@echo "---END COMPONENT TESTS---"
+	@echo "---END VIP COMPONENT TESTS---"
 
 .PHONY: component-test-coverage
 component-test-coverage: vendor ## Run component tests with coverage

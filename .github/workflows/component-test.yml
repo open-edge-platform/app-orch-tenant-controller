@@ -2,135 +2,179 @@
 # SPDX-License-Identifier: Apache-2.0
 
 name: Component Tests
-
 on:
-  push:
-    branches: [ main, develop ]
   pull_request:
-    branches: [ main, develop ]
-  workflow_dispatch:
+    types: [labeled]
+  schedule:
+    - cron: "0 0 * * *" # Run every day at midnight
+  workflow_dispatch:  # Run on manual trigger
     inputs:
+      run-component-tests:
+        description: 'Run component tests'
+        required: true
+        type: boolean
+        default: false
       emf-branch:
-        description: 'EMF branch to use for deployment'
-        required: false
+        description: 'The branch, tag or SHA to checkout EMF'
+        required: true
+        type: string
         default: 'main'
-      kind-cluster-name:
-        description: 'KIND cluster name'
-        required: false
-        default: 'tenant-controller-test'
-      kind-cluster-version:
-        description: 'KIND cluster version'
-        required: false
-        default: 'v1.29.2'
-      helm-chart-timeout:
-        description: 'Helm chart timeout'
-        required: false
-        default: '600s'
 
 permissions:
   contents: read
 
-env:
-  # Orchestrator domain configuration
-  ORCH_DOMAIN: "kind.internal"
-  AUTO_CERT: false
-  KIND_CLUSTER_NAME: "tenant-controller-test-${{ github.run_id }}"
-  EMF_BRANCH: ${{ github.event.inputs.emf-branch || 'main' }}
-  
-  # Real service endpoints (no mocking)
-  HARBOR_SERVER: https://harbor.kind.internal
-  HARBOR_NAMESPACE: harbor
-  HARBOR_ADMIN_CREDENTIAL: admin-secret
-  KEYCLOAK_SERVER: https://keycloak.kind.internal
-  KEYCLOAK_NAMESPACE: keycloak
-  KEYCLOAK_SECRET: keycloak-secret
-  VAULT_SERVER: https://vault.kind.internal
-  CATALOG_SERVER: https://catalog.kind.internal
-  ADM_SERVER: https://adm.kind.internal
-  RS_ROOT_URL: oci://registry.kind.internal
-  RS_PROXY_ROOT_URL: https://registry.kind.internal
-  MANIFEST_PATH: /manifests
-  MANIFEST_TAG: latest
-  REGISTRY_HOST_EXTERNAL: https://harbor.kind.internal
-  SERVICE_ACCOUNT: default
-
 jobs:
   component-tests:
-    name: Component Tests
-    runs-on: ubuntu-22.04
+    name: Deploy Kind Orchestrator and Run Component Tests
+    if: |
+      ${{ inputs.run-component-tests || github.event_name == 'schedule' || github.event.label.name == 'run-component-tests' }}
+    runs-on: ubuntu-24.04-16core-64GB # Following catalog pattern for sufficient resources
     timeout-minutes: 60
+    env:
+      ORCH_DEFAULT_PASSWORD: ${{ secrets.ORCH_DEFAULT_PASSWORD }}
+      CODER_DIR: ${{ github.workspace }}
 
     steps:
-      - name: Checkout tenant controller repo
-        uses: actions/checkout@v4
+      - name: Deploy Kind Orchestrator
+        id: deploy-kind-orchestrator
+        uses: open-edge-platform/edge-manageability-framework/.github/actions/deploy_kind@main
+        timeout-minutes: 45
         with:
-          fetch-depth: 0
+          orch_version: ${{ inputs.emf-branch || 'main' }}
+          orch_password: ${{ secrets.ORCH_DEFAULT_PASSWORD }}
+          docker_username: ${{ secrets.SYS_DOCKERHUB_USERNAME }}
+          docker_password: ${{ secrets.SYS_DOCKERHUB_RO }}
+          token: ${{ secrets.SYS_ORCH_GITHUB }}
+          deployment_type: 'all'
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version-file: 'go.mod'
+          go-version: '1.24.1'
           cache: true
 
-      - name: Install dependencies
-        run: |
-          # Install KIND for local Kubernetes cluster
-          go install sigs.k8s.io/kind@v0.20.0
-          
-          # Install kubectl
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/
-          
-          # Install Helm
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-      - name: Verify tools installation
-        run: |
-          kind version
-          kubectl version --client
-          helm version
-          docker version
-
-      - name: Run Component Tests
-        run: |
-          # Run component tests
-          echo "🚀 Starting Component Tests..."
-          echo "📋 Using KIND cluster: ${{ env.KIND_CLUSTER_NAME }}"
-          echo "🌐 Orchestrator domain: ${{ env.ORCH_DOMAIN }}"
-          echo "🔧 EMF branch: ${{ env.EMF_BRANCH }}"
-          
-          # Execute component tests with VIP setup
-          make component-test
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: Checkout app-orch-tenant-controller repository
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
         with:
-          name: component-test-results
-          path: |
-            component-test-report.xml
+          path: app-orch-tenant-controller
+          token: ${{ secrets.SYS_ORCH_GITHUB }}
+          persist-credentials: false
 
-      - name: Upload test logs
-        uses: actions/upload-artifact@v4
-        if: always()
+      - name: Get current git hash of the app-orch-tenant-controller PR
+        id: get-git-hash-tenant-controller
+        working-directory: app-orch-tenant-controller
+        env:
+          GIT_HASH_CHARTS: ${{ github.event.pull_request.head.sha }}
+        run: echo "GIT_HASH_CHARTS=$GIT_HASH_CHARTS" >> "$GITHUB_ENV"
+
+      - name: Setup users and project/org
+        shell: bash
+        run: |
+          mage tenantUtils:createDefaultMtSetup
+          echo "Orch org/project/users created!"
+          echo "Project uID:"
+          kubectl get projects.project -o json | jq -r ".items[0].status.projectStatus.uID"
+
+      - name: Build binaries
+        working-directory: app-orch-tenant-controller
+        run: |
+          make build
+
+      # Install versions of the build tools that are different from what is in
+      # the runner. These must match the .tool-versions file in the app-orch-tenant-controller repo.
+      - name: Install tenant-controller build tools
+        run: |
+          asdf install kind 0.29.0
+          asdf install kubectl 1.33.2
+          asdf install yq 4.45.4
+
+      - name: Redeploy and Rebuild app-orch-tenant-controller
+        working-directory: app-orch-tenant-controller
+        run: |
+          make coder-redeploy
+          make coder-rebuild
+
+      - name: Describe app-orch-tenant-controller
+        run: kubectl describe deployments.app -n orch-app app-orch-tenant-controller || echo "Deployment may be in different namespace"
+
+      - name: Wait for app-orch-tenant-controller pod to be Running
+        run: |
+          MAX_RETRIES=30
+          count=0
+          while [ $count -lt $MAX_RETRIES ]; do
+            POD_NAME=$(kubectl get pods -n orch-app -l app.kubernetes.io/instance=app-orch-tenant-controller -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+            if [ -z "$POD_NAME" ]; then
+              echo "No tenant controller pod found yet, retrying..."
+              count=$((count+1))
+              sleep 10
+              continue
+            fi
+            POD_STATUS=$(kubectl get pod $POD_NAME -n orch-app -o jsonpath='{.status.phase}')
+            READY_STATUS=$(kubectl get pod $POD_NAME -n orch-app -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null || echo "false")
+            if [ "$POD_STATUS" == "Running" ] && [ "$READY_STATUS" == "true" ]; then
+              echo "Pod $POD_NAME is Running and Ready."
+              break
+            else
+              echo "Pod $POD_NAME status: $POD_STATUS, Ready: $READY_STATUS"
+              count=$((count+1))
+              sleep 10
+            fi
+          done
+          if [ $count -eq $MAX_RETRIES ]; then
+            echo "Pod did not reach Running state within time limit."
+            kubectl get pods -A
+            exit 1
+          fi
+
+      - name: Run Tenant Controller Component Tests
+        working-directory: app-orch-tenant-controller/test
+        env:
+          PATH: ${{ env.PATH }}:${{ env.GOPATH }}/bin
+        run: |
+          make component-tests
+          echo "Component tests done!"
+
+      - name: Report
+        uses: becheran/go-testreport@main
         with:
-          name: component-test-logs
-          path: |
-            /tmp/kind-*.log
+          input: app-orch-tenant-controller/test/test-report.json
+          output: app-orch-tenant-controller/test/${{ github.event_name }}-${{ github.event.number }}-test-report.html
+          template: app-orch-tenant-controller/test/template.html
 
-      - name: Cleanup on failure
+      # Several diagnostic commands to run in case of failure. Collect all the argo
+      # application state and describe all the pods.
+
+      - name: list all argo applications
         if: failure()
         run: |
-          # Cleanup component test environment
-          ./test/scripts/cleanup-component-test.sh || true
-          
-          # Get cluster logs for debugging
-          kubectl cluster-info dump --output-directory=/tmp/cluster-dump || true
+          kubectl get applications.argoproj.io -o wide -A
 
-      - name: Upload cluster dump on failure
-        uses: actions/upload-artifact@v4
+      - name: describe all argo applications
         if: failure()
+        run: |
+          kubectl describe applications.argoproj.io -A
+
+      - name: get all pods
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide
+
+      - name: describe all pods
+        if: failure()
+        run: |
+          kubectl describe pods -A
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: cluster-dump
-          path: /tmp/cluster-dump
+          name: test-report
+          path: app-orch-tenant-controller/test/${{ github.event_name }}-${{ github.event.number }}-test-report.html
+          retention-days: 14
+
+      # collect app orch tenant controller logs in case of failure
+      - name: Get app-orch-tenant-controller diagnostic information
+        if: failure()
+        id: get-app-orch-tenant-controller-diag-info
+        run: |
+          kubectl logs -n orch-app -l app=app-orch-tenant-controller --tail=-1 > app-orch-tenant-controller.log || echo "No current logs for app-orch-tenant-controller"

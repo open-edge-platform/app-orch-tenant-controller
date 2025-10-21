@@ -2,6 +2,10 @@
 # SPDX-FileCopyrightText: (C) 2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# Setup script for tenant controller component tests with VIP orchestrator
+# This script assumes VIP orchestrator is already deployed via GitHub Actions
+# Following catalog repository pattern - validate and connect to existing services
+
 set -e
 
 # Colors for output
@@ -11,11 +15,15 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-echo -e "${GREEN}🚀 Setting up environment...${NC}"
+echo -e "${GREEN}🚀 VIP Orchestrator Component Test Setup${NC}"
+echo -e "${BLUE}Connecting to deployed VIP orchestrator services...${NC}"
 
-# Configuration
-CLUSTER_NAME=${KIND_CLUSTER_NAME:-"tenant-controller-test"}
+# Get script directory for relative paths
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+# VIP Orchestrator configuration (services already deployed)
 ORCH_DOMAIN=${ORCH_DOMAIN:-"kind.internal"}
+CLUSTER_NAME=${KIND_CLUSTER_NAME:-"kind"}
 EMF_BRANCH=${EMF_BRANCH:-"main"}
 
 # Check prerequisites
@@ -103,258 +111,18 @@ EOF
     echo -e "${GREEN}✅ KIND cluster created successfully${NC}"
 }
 
-# Deploy full EMF orchestrator stack
-deploy_full_emf_stack() {
-    echo -e "${BLUE}🏗️  Deploying orchestrator services...${NC}"
+# Deploy REAL orchestrator services (not nginx mocks)
+deploy_real_orchestrator_services() {
+    echo -e "${BLUE}🏗️  Deploying REAL orchestrator services (not mocks)...${NC}"
     
-    # Install NGINX Ingress Controller
-    echo -e "${YELLOW}🌐 Installing NGINX Ingress Controller...${NC}"
-    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-    kubectl wait --namespace ingress-nginx \
-        --for=condition=ready pod \
-        --selector=app.kubernetes.io/component=controller \
-        --timeout=300s
+    # Deploy REAL production services instead of nginx mocks
+    echo -e "${YELLOW}📋 Using real Harbor, Catalog, ADM, and Keycloak services${NC}"
+    echo -e "${YELLOW}🚨 This tests against actual APIs, not mock responses${NC}"
     
-    echo -e "${YELLOW}� Deploying Keycloak...${NC}"
-    kubectl create namespace keycloak --dry-run=client -o yaml | kubectl apply -f -
+    # Execute the real services deployment script
+    "${SCRIPT_DIR}/deploy-real-services.sh"
     
-    cat > /tmp/keycloak-deployment.yaml << EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: keycloak
-  namespace: keycloak
-  labels:
-    app.kubernetes.io/name: keycloak
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: keycloak
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: keycloak
-    spec:
-      containers:
-      - name: keycloak
-        image: quay.io/keycloak/keycloak:22.0
-        env:
-        - name: KEYCLOAK_ADMIN
-          value: admin
-        - name: KEYCLOAK_ADMIN_PASSWORD
-          value: admin123
-        - name: KC_BOOTSTRAP_ADMIN_USERNAME
-          value: admin
-        - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-          value: admin123
-        args:
-        - start-dev
-        - --http-port=8080
-        ports:
-        - containerPort: 8080
-        readinessProbe:
-          httpGet:
-            path: /realms/master
-            port: 8080
-          initialDelaySeconds: 60
-          periodSeconds: 10
-          timeoutSeconds: 5
-        livenessProbe:
-          httpGet:
-            path: /realms/master
-            port: 8080
-          initialDelaySeconds: 90
-          periodSeconds: 30
-          timeoutSeconds: 5
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: keycloak
-  namespace: keycloak
-spec:
-  selector:
-    app.kubernetes.io/name: keycloak
-  ports:
-  - port: 80
-    targetPort: 8080
-EOF
-    
-    kubectl apply -f /tmp/keycloak-deployment.yaml
-
-    echo -e "${YELLOW}🐳 Deploying Harbor...${NC}"
-    kubectl create namespace harbor --dry-run=client -o yaml | kubectl apply -f -
-    
-    # Create nginx config for basic Harbor API responses
-    cat > /tmp/harbor-nginx-config.yaml << EOF
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: harbor-nginx-config
-  namespace: harbor
-data:
-  default.conf: |
-    server {
-        listen 8080;
-        location / {
-            return 200 '{"status": "ok", "service": "harbor"}';
-            add_header Content-Type application/json;
-        }
-        location /api/v2.0/health {
-            return 200 '{"status": "healthy"}';
-            add_header Content-Type application/json;
-        }
-        location /api/v2.0/projects {
-            return 200 '[]';
-            add_header Content-Type application/json;
-        }
-    }
-EOF
-    
-    kubectl apply -f /tmp/harbor-nginx-config.yaml
-    
-    cat > /tmp/harbor-deployment.yaml << EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: harbor-core
-  namespace: harbor
-  labels:
-    app.kubernetes.io/name: harbor
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: harbor
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: harbor
-    spec:
-      containers:
-      - name: harbor-core
-        image: nginx:1.21-alpine
-        ports:
-        - containerPort: 8080
-        volumeMounts:
-        - name: nginx-config
-          mountPath: /etc/nginx/conf.d
-        env:
-        - name: HARBOR_MODE
-          value: "testing"
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 8080
-          initialDelaySeconds: 30
-          periodSeconds: 10
-      volumes:
-      - name: nginx-config
-        configMap:
-          name: harbor-nginx-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: harbor-core
-  namespace: harbor
-spec:
-  selector:
-    app.kubernetes.io/name: harbor
-  ports:
-  - port: 80
-    targetPort: 8080
-EOF
-    
-    kubectl apply -f /tmp/harbor-deployment.yaml
-    
-    # Deploy catalog service
-    echo -e "${YELLOW}📚 Deploying Catalog service...${NC}"
-    kubectl create namespace orch-app --dry-run=client -o yaml | kubectl apply -f -
-    
-    # Create nginx config for basic API responses
-    cat > /tmp/catalog-nginx-config.yaml << EOF
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: catalog-nginx-config
-  namespace: orch-app
-data:
-  default.conf: |
-    server {
-        listen 8080;
-        location / {
-            return 200 '{"status": "ok", "service": "catalog"}';
-            add_header Content-Type application/json;
-        }
-        location /health {
-            return 200 '{"status": "healthy"}';
-            add_header Content-Type application/json;
-        }
-        location /catalog.orchestrator.apis/v3 {
-            return 200 '{"registries": [], "applications": [], "deploymentPackages": []}';
-            add_header Content-Type application/json;
-        }
-    }
-EOF
-    
-    kubectl apply -f /tmp/catalog-nginx-config.yaml
-    
-    cat > /tmp/catalog-deployment.yaml << EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: catalog
-  namespace: orch-app
-  labels:
-    app.kubernetes.io/name: catalog
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: catalog
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: catalog
-    spec:
-      containers:
-      - name: catalog
-        image: nginx:1.21-alpine
-        ports:
-        - containerPort: 8080
-        volumeMounts:
-        - name: nginx-config
-          mountPath: /etc/nginx/conf.d
-        env:
-        - name: ORCH_DOMAIN
-          value: "${ORCH_DOMAIN}"
-        - name: KEYCLOAK_SERVER
-          value: "http://keycloak.keycloak.svc.cluster.local"
-        - name: HARBOR_SERVER
-          value: "http://harbor-core.harbor.svc.cluster.local"
-      volumes:
-      - name: nginx-config
-        configMap:
-          name: catalog-nginx-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: catalog
-  namespace: orch-app
-spec:
-  selector:
-    app.kubernetes.io/name: catalog
-  ports:
-  - port: 80
-    targetPort: 8080
-EOF
-    
-    kubectl apply -f /tmp/catalog-deployment.yaml
-    
-    echo -e "${GREEN}✅ Orchestrator services deployed successfully${NC}"
+    echo -e "${GREEN}✅ REAL orchestrator services deployed successfully${NC}"
 }
 
 # Deploy and configure tenant controller
@@ -384,7 +152,7 @@ deploy_tenant_controller() {
     # Load image into KIND cluster
     kind load docker-image "app-orch-tenant-controller:${VERSION}" --name "$CLUSTER_NAME"
     
-    # Deploy using Helm chart with overrides for services and LONGER TIMEOUT
+    # Deploy using Helm chart with overrides for REAL services
     echo -e "${YELLOW}⚙️  Installing tenant controller with Helm...${NC}"
     helm upgrade --install app-orch-tenant-controller ./deploy/charts/app-orch-tenant-controller \
         --namespace orch-app \
@@ -394,8 +162,8 @@ deploy_tenant_controller() {
         --set image.repository=app-orch-tenant-controller \
         --set image.tag="${VERSION}" \
         --set image.pullPolicy=Never \
-        --set configProvisioner.harborServer="http://harbor-core.harbor.svc.cluster.local:80" \
-        --set configProvisioner.catalogServer="catalog.orch-app.svc.cluster.local:80" \
+        --set configProvisioner.harborServer="http://harbor-oci-core.orch-harbor.svc.cluster.local:80" \
+        --set configProvisioner.catalogServer="catalog-service-grpc-server.orch-app.svc.cluster.local:8080" \
         --set configProvisioner.keycloakServiceBase="http://keycloak.keycloak.svc.cluster.local:80" \
         --set configProvisioner.keycloakServer="http://keycloak.keycloak.svc.cluster.local:80" \
         --set configProvisioner.keycloakSecret="keycloak-secret" \
@@ -576,7 +344,7 @@ print_usage_info() {
 main() {
     check_prerequisites
     create_kind_cluster
-    deploy_full_emf_stack
+    deploy_real_orchestrator_services
     create_secrets
     setup_rbac
     deploy_tenant_controller
