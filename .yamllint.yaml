@@ -6,6 +6,7 @@ ignore: |
   vendor/*
   .github/
   ci/
+  deploy/charts/*/templates/*
 rules:
   line-length:
     max: 200
