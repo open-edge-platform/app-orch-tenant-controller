@@ -30,7 +30,7 @@ jobs:
       github.event_name == 'schedule' || 
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && contains(github.event.label.name, 'run-component-tests'))
-    runs-on: ${{ github.repository_owner == 'intel' && 'intel-ubuntu-latest' || 'ubuntu-latest' }} # Use available runners
+    runs-on: ubuntu-latest # Use available runner
     timeout-minutes: 60
     env:
       ORCH_DEFAULT_PASSWORD: 'ChangeMeOn1stLogin!'
@@ -123,10 +123,33 @@ jobs:
           GIT_HASH_CHARTS: ${{ github.event.pull_request.head.sha }}
         run: echo "GIT_HASH_CHARTS=$GIT_HASH_CHARTS" >> "$GITHUB_ENV"
 
+      - name: Checkout app-orch-catalog repository (for mage utilities)
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: open-edge-platform/app-orch-catalog
+          path: app-orch-catalog
+          token: ${{ secrets.SYS_ORCH_GITHUB }}
+          persist-credentials: false
+
+      - name: Install mage and setup tools
+        run: |
+          echo "Installing mage..."
+          go install github.com/magefile/mage@latest
+          echo "Mage installed successfully"
+
       - name: Setup users and project/org
         shell: bash
+        working-directory: app-orch-catalog
         run: |
+          echo "Running tenant utils setup from catalog repository..."
+          echo "Current directory: $(pwd)"
+          echo "Available mage targets:"
+          mage -l 2>/dev/null || echo "No mage targets found"
+          
+          # Run the mage command for tenant setup
+          echo "Creating default MT setup..."
           mage tenantUtils:createDefaultMtSetup
+          
           echo "Orch org/project/users created!"
           echo "Project uID:"
           kubectl get projects.project -o json | jq -r ".items[0].status.projectStatus.uID"
@@ -134,6 +157,9 @@ jobs:
       - name: Build binaries
         working-directory: app-orch-tenant-controller
         run: |
+          echo "Updating Go module dependencies..."
+          go mod tidy
+          echo "Building binaries..."
           make build
 
       # Install versions of the build tools that are different from what is in
@@ -159,15 +185,9 @@ jobs:
           MAX_RETRIES=30
           count=0
           while [ $count -lt $MAX_RETRIES ]; do
-            POD_NAME=$(kubectl get pods -n orch-app -l app.kubernetes.io/instance=app-orch-tenant-controller -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-            if [ -z "$POD_NAME" ]; then
-              echo "No tenant controller pod found yet, retrying..."
-              count=$((count+1))
-              sleep 10
-              continue
-            fi
+            POD_NAME=$(kubectl get pods -n orch-app -l app.kubernetes.io/instance=app-orch-tenant-controller -o jsonpath='{.items[0].metadata.name}')
             POD_STATUS=$(kubectl get pod $POD_NAME -n orch-app -o jsonpath='{.status.phase}')
-            READY_STATUS=$(kubectl get pod $POD_NAME -n orch-app -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null || echo "false")
+            READY_STATUS=$(kubectl get pod $POD_NAME -n orch-app -o jsonpath='{.status.containerStatuses[0].ready}')
             if [ "$POD_STATUS" == "Running" ] && [ "$READY_STATUS" == "true" ]; then
               echo "Pod $POD_NAME is Running and Ready."
               break
@@ -179,7 +199,7 @@ jobs:
           done
           if [ $count -eq $MAX_RETRIES ]; then
             echo "Pod did not reach Running state within time limit."
-            kubectl get pods -A
+            kubectl describe pod $POD_NAME -n orch-app
             exit 1
           fi
 
