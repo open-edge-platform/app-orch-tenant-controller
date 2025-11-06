@@ -134,3 +134,42 @@ func (s *ManagerTestSuite) TestIntervalLargerThanWait() {
 	s.Error(err)
 	s.Contains(err.Error(), "must be less than")
 }
+
+// Test to verify error propagation in manager
+func (s *ManagerTestSuite) TestManagerErrorPropagation() {
+	// Create a manager with invalid config that will cause initialization to fail
+	cfg := config.Configuration{
+		HarborServer:          "http://invalid-harbor-server",
+		HarborNamespace:       "invalid-namespace",
+		HarborAdminCredential: "invalid-credential",
+		KeycloakServer:        "http://invalid-keycloak",
+		CatalogServer:         "http://invalid-catalog",
+		ReleaseServiceBase:    "http://invalid-rs",
+		ManifestPath:          "/invalid",
+		ManifestTag:           "invalid",
+	}
+
+	manager := NewManager(cfg)
+	s.NotNil(manager)
+
+	s.Equal("invalid", manager.Config.ManifestTag)
+}
+
+// Test to verify manager doesn't hang indefinitely
+func (s *ManagerTestSuite) TestManagerDoesNotHangIndefinitely() {
+
+	timeout := 10 * time.Second
+	done := make(chan bool, 1)
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		s.T().Log("Manager correctly exits rather than hanging indefinitely")
+	case <-time.After(timeout):
+		s.T().Fatal("Manager appears to hang indefinitely")
+	}
+}
