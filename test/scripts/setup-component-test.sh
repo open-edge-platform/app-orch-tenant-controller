@@ -57,7 +57,7 @@ verify_orchestrator() {
     echo -e "${GREEN}✅ Kubernetes cluster accessible${NC}"
     
     # Check for key orchestrator namespaces
-    local required_namespaces=("orch-app" "orch-system")
+    local required_namespaces=("orch-app" "orch-platform" "orch-harbor")
     for ns in "${required_namespaces[@]}"; do
         if ! kubectl get namespace "$ns" &> /dev/null; then
             echo -e "${YELLOW}⚠️  Namespace $ns not found - orchestrator may not be fully deployed${NC}"
@@ -91,7 +91,7 @@ print_environment_info() {
     echo ""
     echo -e "${BLUE}📊 Key Services Status:${NC}"
     kubectl get pods -n orch-app -l app.kubernetes.io/instance=app-orch-tenant-controller 2>/dev/null || echo "  Tenant controller: Not found in orch-app"
-    kubectl get pods -n orch-system -l app.kubernetes.io/name=keycloak 2>/dev/null | tail -n +2 || echo "  Keycloak: Not found in orch-system"
+    kubectl get pods -n orch-platform -l app.kubernetes.io/name=platform-keycloak 2>/dev/null | tail -n +2 || echo "  Keycloak: Not found in orch-platform"
     echo ""
     echo -e "${BLUE}🧪 Ready to run component tests${NC}"
     echo ""
