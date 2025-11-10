@@ -42,42 +42,76 @@ func NewCatalogProvisionerPlugin(config config.Configuration) (*CatalogProvision
 
 }
 
-func (p *CatalogProvisionerPlugin) waitForCatalog(ctx context.Context) {
+func (p *CatalogProvisionerPlugin) waitForCatalog(ctx context.Context) error {
 	log.Info("Waiting for catalog")
-	catalog, _ := CatalogFactory(p.config)
+	catalog, err := CatalogFactory(p.config)
+	if err != nil {
+		return fmt.Errorf("failed to create catalog client: %w", err)
+	}
 
-	for {
-		var cancel context.CancelFunc
-		var lctx context.Context
-		lctx, cancel = context.WithTimeout(ctx, 10*time.Second)
+	maxRetries := 12 // Total wait time: ~5 minutes
+	retryDelay := 5 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		lctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		err := catalog.ListRegistries(lctx)
 		cancel()
+
 		if err == nil || strings.Contains(err.Error(), "Unauthenticated") {
-			break
+			log.Info("Catalog ready")
+			return nil
 		}
-		time.Sleep(5 * time.Second)
+
+		if attempt == maxRetries {
+			return fmt.Errorf("catalog not available after %d attempts: %w", maxRetries, err)
+		}
+
+		log.Infof("Catalog ping failed (attempt %d/%d): %v. Retrying in %v...", attempt, maxRetries, err, retryDelay)
+		time.Sleep(retryDelay)
+
+		retryDelay = retryDelay * 2
+		if retryDelay > 60*time.Second {
+			retryDelay = 60 * time.Second
+		}
 	}
-	log.Info("Catalog ready")
+
+	return fmt.Errorf("catalog not available after maximum retries")
 }
 
-func (p *CatalogProvisionerPlugin) waitForVault(ctx context.Context) {
+func (p *CatalogProvisionerPlugin) waitForVault(ctx context.Context) error {
 	log.Info("Waiting for vault")
-	catalog, _ := CatalogFactory(p.config)
-	var err error
-
-	for {
-		var cancel context.CancelFunc
-		var lctx context.Context
-		lctx, cancel = context.WithTimeout(ctx, 10*time.Second)
-		_, err = catalog.InitializeClientSecret(lctx)
-		cancel()
-		if err == nil {
-			break
-		}
-		log.Errorf("vault login threw error %s", err.Error())
-		time.Sleep(5 * time.Second)
+	catalog, err := CatalogFactory(p.config)
+	if err != nil {
+		return fmt.Errorf("failed to create catalog client for vault: %w", err)
 	}
-	log.Info("vault ready")
+
+	maxRetries := 12 // Total wait time: ~5 minutes
+	retryDelay := 5 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		lctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		_, err := catalog.InitializeClientSecret(lctx)
+		cancel()
+
+		if err == nil {
+			log.Info("Vault ready")
+			return nil
+		}
+
+		if attempt == maxRetries {
+			return fmt.Errorf("vault not available after %d attempts: %w", maxRetries, err)
+		}
+
+		log.Infof("Vault login failed (attempt %d/%d): %v. Retrying in %v...", attempt, maxRetries, err, retryDelay)
+		time.Sleep(retryDelay)
+
+		retryDelay = retryDelay * 2
+		if retryDelay > 60*time.Second {
+			retryDelay = 60 * time.Second
+		}
+	}
+
+	return fmt.Errorf("vault not available after maximum retries")
 }
 
 func (p *CatalogProvisionerPlugin) Initialize(ctx context.Context, _ PluginData) error {
@@ -85,14 +119,21 @@ func (p *CatalogProvisionerPlugin) Initialize(ctx context.Context, _ PluginData)
 	var catalog Catalog
 	catalog, err = CatalogFactory(p.config)
 	if err != nil {
-		return err
+		return fmt.Errorf("catalog initialization failed: %w", err)
 	}
-	p.waitForVault(ctx)
+
+	if err := p.waitForVault(ctx); err != nil {
+		return fmt.Errorf("catalog initialization failed during vault check: %w", err)
+	}
+
 	_, err = catalog.InitializeClientSecret(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("catalog initialization failed to initialize client secret: %w", err)
 	}
-	p.waitForCatalog(ctx)
+
+	if err := p.waitForCatalog(ctx); err != nil {
+		return fmt.Errorf("catalog initialization failed during catalog check: %w", err)
+	}
 
 	log.Info("Completed Initializing Catalog plugin")
 	return nil

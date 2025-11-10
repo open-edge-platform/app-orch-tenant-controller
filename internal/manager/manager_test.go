@@ -4,11 +4,13 @@
 package manager
 
 import (
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
 	"github.com/stretchr/testify/suite"
 	"os"
-	"testing"
-	"time"
 )
 
 // Suite of manager tests
@@ -137,39 +139,78 @@ func (s *ManagerTestSuite) TestIntervalLargerThanWait() {
 
 // Test to verify error propagation in manager
 func (s *ManagerTestSuite) TestManagerErrorPropagation() {
-	// Create a manager with invalid config that will cause initialization to fail
+	// Create a manager with invalid config that will cause plugin initialization to fail
 	cfg := config.Configuration{
-		HarborServer:          "http://invalid-harbor-server",
+		HarborServer:          "http://invalid-harbor-server:99999",
 		HarborNamespace:       "invalid-namespace",
 		HarborAdminCredential: "invalid-credential",
-		KeycloakServer:        "http://invalid-keycloak",
-		CatalogServer:         "http://invalid-catalog",
-		ReleaseServiceBase:    "http://invalid-rs",
+		KeycloakServer:        "http://invalid-keycloak:99999",
+		CatalogServer:         "invalid-catalog:99999",
+		ReleaseServiceBase:    "http://invalid-rs:99999",
 		ManifestPath:          "/invalid",
 		ManifestTag:           "invalid",
+		VaultServer:           "http://invalid-vault:99999",
+		KeycloakServiceBase:   "http://invalid-keycloak-svc:99999",
+		NumberWorkerThreads:   1,
+		InitialSleepInterval:  1 * time.Second,
+		MaxWaitTime:           5 * time.Second,
 	}
 
 	manager := NewManager(cfg)
-	s.NotNil(manager)
+	s.NotNil(manager, "NewManager should return a non-nil manager")
 
-	s.Equal("invalid", manager.Config.ManifestTag)
+	// Verify manager was created with the config
+	s.Equal("invalid", manager.Config.ManifestTag, "Manager should store the provided config")
+
+	// Test that Start() propagates errors from plugin initialization
+	// Plugins should fail to initialize with invalid config (Harbor/Catalog/Extensions)
+	err := manager.Start()
+	s.Error(err, "Manager.Start() should return error when plugins fail to initialize")
+	// Error could be from Harbor, Catalog, or Kubernetes configuration
+	s.True(
+		strings.Contains(err.Error(), "harbor") ||
+			strings.Contains(err.Error(), "catalog") ||
+			strings.Contains(err.Error(), "KUBERNETES_SERVICE"),
+		"Error should indicate plugin initialization failure, got: %v", err)
 }
 
-// Test to verify manager doesn't hang indefinitely
+// Test to verify manager doesn't hang indefinitely during event processing
 func (s *ManagerTestSuite) TestManagerDoesNotHangIndefinitely() {
+	// Create a manager with minimal valid config
+	cfg := config.Configuration{
+		HarborServer:          "http://localhost:8080",
+		HarborNamespace:       "test-namespace",
+		HarborAdminCredential: "test-credential",
+		KeycloakServer:        "http://localhost:8081",
+		CatalogServer:         "localhost:8082",
+		ReleaseServiceBase:    "http://localhost:8083",
+		ManifestPath:          "/test",
+		ManifestTag:           "test",
+		VaultServer:           "http://localhost:8200",
+		KeycloakServiceBase:   "http://localhost:8080",
+		NumberWorkerThreads:   1,
+		InitialSleepInterval:  1 * time.Second,
+		MaxWaitTime:           5 * time.Second,
+	}
 
+	manager := NewManager(cfg)
+	s.NotNil(manager, "NewManager should return a non-nil manager")
+
+	// Test that Start() returns within reasonable time even with connection failures
 	timeout := 10 * time.Second
-	done := make(chan bool, 1)
+	done := make(chan error, 1)
 
 	go func() {
-		time.Sleep(100 * time.Millisecond)
-		done <- true
+		// Start() will fail due to invalid services, but should not hang
+		err := manager.Start()
+		done <- err
 	}()
 
 	select {
-	case <-done:
-		s.T().Log("Manager correctly exits rather than hanging indefinitely")
+	case err := <-done:
+		s.T().Log("Manager.Start() completed without hanging")
+		s.Error(err, "Expected error due to invalid service connections")
 	case <-time.After(timeout):
-		s.T().Fatal("Manager appears to hang indefinitely")
+		s.T().Fatal("Manager.Start() appears to hang indefinitely - due to timeouts")
 	}
 }
