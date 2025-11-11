@@ -24,6 +24,7 @@ import (
 
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/plugins"
+	"github.com/open-edge-platform/app-orch-tenant-controller/internal/southbound"
 	"github.com/open-edge-platform/app-orch-tenant-controller/test/utils/portforward"
 )
 
@@ -54,6 +55,20 @@ type ComponentTestSuite struct {
 	// Harbor credentials for direct API calls
 	harborUsername string
 	harborPassword string
+}
+
+// testK8sClient is a mock K8s client for component tests
+// It provides Harbor credentials without needing in-cluster K8s access
+type testK8sClient struct {
+	harborUsername string
+	harborPassword string
+}
+
+func (k *testK8sClient) ReadSecret(_ context.Context, _ string) (map[string][]byte, error) {
+	credential := fmt.Sprintf("%s:%s", k.harborUsername, k.harborPassword)
+	result := make(map[string][]byte)
+	result["credential"] = []byte(credential)
+	return result, nil
 }
 
 // SetupSuite initializes the test suite
@@ -180,6 +195,15 @@ func (suite *ComponentTestSuite) setupTenantControllerComponents() {
 func (suite *ComponentTestSuite) registerRealPlugins() {
 	log.Printf("Registering tenant controller plugins")
 
+	// Setup mock K8s client for Harbor plugin (it tries to read secrets from K8s)
+	// In component tests, we're running outside the cluster, so we provide mock credentials
+	southbound.K8sFactory = func(_ string) (southbound.K8s, error) {
+		return &testK8sClient{
+			harborUsername: suite.harborUsername,
+			harborPassword: suite.harborPassword,
+		}, nil
+	}
+
 	// Harbor Provisioner Plugin
 	harborPlugin, err := plugins.NewHarborProvisionerPlugin(
 		suite.ctx,
@@ -278,6 +302,18 @@ func (suite *ComponentTestSuite) setupHTTPClient() {
 				log.Printf("✅ Harbor credentials loaded for API testing")
 			}
 		}
+	} else {
+		// Fallback to default credentials if secret not found
+		log.Printf("⚠️ Harbor secret not found, using default credentials: %v", err)
+		suite.harborUsername = "admin"
+		suite.harborPassword = "Harbor12345"
+	}
+
+	// Ensure credentials are set
+	if suite.harborUsername == "" || suite.harborPassword == "" {
+		log.Printf("⚠️  Harbor credentials empty, using defaults")
+		suite.harborUsername = "admin"
+		suite.harborPassword = "Harbor12345"
 	}
 
 	// Create HTTP client with custom transport for Harbor auth
@@ -539,6 +575,7 @@ func (suite *ComponentTestSuite) createHarborRobot(projectName string) {
 		"description": "Robot for catalog access",
 		"secret":      "auto-generated",
 		"level":       "project",
+		"duration":    -1, // -1 means never expires
 		"permissions": []map[string]interface{}{
 			{
 				"kind":      "project",
@@ -758,9 +795,9 @@ func (suite *ComponentTestSuite) testVerifyAllRealServicesDeployed() {
 		namespace  string
 		deployment string
 	}{
-		{"keycloak", "keycloak", "keycloak"},
-		{"harbor", "harbor", "harbor-core"},
-		{"catalog", suite.tenantControllerNS, "catalog"},
+		{"keycloak", "orch-platform", "platform-keycloak"},
+		{"harbor", "orch-harbor", "harbor-oci-core"},
+		{"catalog", "orch-app", "app-orch-catalog-rest-proxy"},
 	}
 
 	for _, svc := range services {
@@ -785,9 +822,9 @@ func (suite *ComponentTestSuite) testRealServiceCommunication() {
 		name      string
 		namespace string
 	}{
-		{"keycloak", "keycloak"},
-		{"harbor-core", "harbor"},
-		{"catalog", suite.tenantControllerNS},
+		{"platform-keycloak", "orch-platform"},
+		{"harbor-oci-core", "orch-harbor"},
+		{"app-orch-catalog-rest-proxy", "orch-app"},
 	}
 
 	for _, svc := range services {
@@ -1227,6 +1264,7 @@ func (suite *ComponentTestSuite) createHarborRobotWithValidation(projectName, pr
 		"name":        "catalog-apps-read-write",
 		"description": fmt.Sprintf("Robot for project %s", projectUUID),
 		"level":       "project",
+		"duration":    -1, // -1 means never expires
 		"permissions": []map[string]interface{}{
 			{
 				"kind":      "project",
@@ -1749,9 +1787,9 @@ func (suite *ComponentTestSuite) testEventHandlingWorkflow() {
 		name      string
 		namespace string
 	}{
-		{"keycloak", "keycloak"},
-		{"harbor-core", "harbor"},
-		{"catalog", suite.tenantControllerNS},
+		{"platform-keycloak", "orch-platform"},
+		{"harbor-oci-core", "orch-harbor"},
+		{"app-orch-catalog-rest-proxy", "orch-app"},
 	}
 
 	for _, dep := range dependencyServices {
