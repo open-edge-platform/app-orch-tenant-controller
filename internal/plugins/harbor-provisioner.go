@@ -38,20 +38,41 @@ func NewHarbor(ctx context.Context, harborHost string, oidcURL string, harborNam
 
 var HarborFactory = NewHarbor
 
-func (p *HarborProvisionerPlugin) waitForHarbor(ctx context.Context) {
+func (p *HarborProvisionerPlugin) waitForHarbor(ctx context.Context) error {
 	log.Info("Waiting for Harbor")
-	harbor, _ := HarborFactory(ctx, p.harborHost, p.oidcURL, p.harborNamespace, p.harborAdminCredential)
+	harbor, err := HarborFactory(ctx, p.harborHost, p.oidcURL, p.harborNamespace, p.harborAdminCredential)
+	if err != nil {
+		return fmt.Errorf("failed to create Harbor client: %w", err)
+	}
 
-	for {
+	maxRetries := 12 // Total wait time: ~5 minutes with exponential backoff
+	retryDelay := 5 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
 		lctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		err := harbor.Ping(lctx)
 		cancel()
+
 		if err == nil {
-			break
+			log.Info("Harbor ready")
+			return nil
 		}
-		time.Sleep(5 * time.Second)
+
+		if attempt == maxRetries {
+			return fmt.Errorf("harbor not available after %d attempts: %w", maxRetries, err)
+		}
+
+		log.Infof("Harbor ping failed (attempt %d/%d): %v. Retrying in %v...", attempt, maxRetries, err, retryDelay)
+		time.Sleep(retryDelay)
+
+		// Exponential backoff with cap at 60 seconds
+		retryDelay = retryDelay * 2
+		if retryDelay > 60*time.Second {
+			retryDelay = 60 * time.Second
+		}
 	}
-	log.Info("Harbor ready")
+
+	return fmt.Errorf("harbor not available after maximum retries")
 }
 
 func harborGroupName(event Event, kind string) string {
@@ -74,8 +95,31 @@ func NewHarborProvisionerPlugin(ctx context.Context, harborHost string, oidcURL 
 }
 
 func (p *HarborProvisionerPlugin) Initialize(ctx context.Context, _ PluginData) error {
-	p.waitForHarbor(ctx)
-	return p.harbor.Configurations(ctx)
+	if err := p.waitForHarbor(ctx); err != nil {
+		return fmt.Errorf("harbor initialization failed during ping check: %w", err)
+	}
+
+	// Retry configuration
+	maxRetries := 3
+	retryDelay := 2 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err := p.harbor.Configurations(ctx)
+		if err == nil {
+			log.Info("Harbor configuration applied successfully")
+			return nil
+		}
+
+		if attempt == maxRetries {
+			return fmt.Errorf("failed to apply harbor configuration after %d attempts: %w", maxRetries, err)
+		}
+
+		log.Infof("Harbor configuration failed (attempt %d/%d): %v. Retrying in %v...", attempt, maxRetries, err, retryDelay)
+		time.Sleep(retryDelay)
+		retryDelay = retryDelay * 2
+	}
+
+	return fmt.Errorf("harbor configuration failed after maximum retries")
 }
 
 func (p *HarborProvisionerPlugin) CreateEvent(ctx context.Context, event Event, pluginData PluginData) error {
