@@ -135,6 +135,7 @@ jobs:
         working-directory: app-orch-tenant-controller
         run: |
           echo "Updating Go module dependencies..."
+          unset GOTOOLCHAIN
           go mod tidy
           echo "Building binaries..."
           make build

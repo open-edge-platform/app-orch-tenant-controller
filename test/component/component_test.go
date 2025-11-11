@@ -1774,7 +1774,7 @@ func (suite *ComponentTestSuite) testADMIntegration() {
 
 	// Note: ADM service might not be configured in component test environment
 	// This test validates the API and workflow, but may not have fully functional ADM backend
-	
+
 	// Test 1: List existing deployments (validates ADM is accessible)
 	listResp, err := suite.httpClient.Get(fmt.Sprintf("http://localhost:8083/api/v1/projects/%s/deployments", suite.testProjectUUID))
 	if err != nil {
@@ -1791,11 +1791,11 @@ func (suite *ComponentTestSuite) testADMIntegration() {
 
 	// Test 2: Create a deployment (as per extensions-provisioner.go workflow)
 	deploymentData := map[string]interface{}{
-		"dp_name":        "test-deployment-pkg",
-		"display_name":   "Test Deployment",
-		"dp_version":     "1.0.0",
+		"dp_name":         "test-deployment-pkg",
+		"display_name":    "Test Deployment",
+		"dp_version":      "1.0.0",
 		"dp_profile_name": "default",
-		"project_uuid":   suite.testProjectUUID,
+		"project_uuid":    suite.testProjectUUID,
 		"labels": map[string]string{
 			"app":  "test",
 			"type": "deployment-package",
@@ -1859,20 +1859,20 @@ func (suite *ComponentTestSuite) testExtensionsAndReleaseServiceIntegration() {
 
 	// Test 1: Access Release Service manifest (as configured in README: manifestPath + manifestTag)
 	// Note: In component test, we may not have full Release Service - test structure only
-	
+
 	// Try Release Service proxy endpoint (default: rs-proxy.rs-proxy.svc.cluster.local:8081)
-	manifestEndpoint := fmt.Sprintf("http://localhost:8081%s:%s", 
-		suite.config.ManifestPath, 
+	manifestEndpoint := fmt.Sprintf("http://localhost:8081%s:%s",
+		suite.config.ManifestPath,
 		suite.config.ManifestTag)
-	
+
 	log.Printf("Attempting to fetch manifest from: %s", manifestEndpoint)
-	
+
 	resp, err := suite.httpClient.Get(manifestEndpoint)
 	if err != nil {
 		log.Printf("ℹ️  Release Service manifest endpoint not accessible: %v (acceptable in test environment)", err)
-		log.Printf("ℹ️  Extensions provisioner would fetch manifest: %s with tag: %s", 
+		log.Printf("ℹ️  Extensions provisioner would fetch manifest: %s with tag: %s",
 			suite.config.ManifestPath, suite.config.ManifestTag)
-		
+
 		// Fallback: Test that we can at least parse a mock manifest structure
 		suite.testManifestParsing()
 		return
@@ -1884,17 +1884,17 @@ func (suite *ComponentTestSuite) testExtensionsAndReleaseServiceIntegration() {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		manifestBytes, err := io.ReadAll(resp.Body)
 		suite.Require().NoError(err, "Should read manifest content")
-		
+
 		log.Printf("✅ Manifest fetched successfully (%d bytes)", len(manifestBytes))
 
 		// Test 2: Parse manifest structure (as per extensions-provisioner.go)
 		manifestContent := string(manifestBytes)
-		
+
 		// Verify manifest contains expected fields from Manifest struct
 		suite.Require().True(
-			strings.Contains(manifestContent, "metadata") || 
-			strings.Contains(manifestContent, "schemaVersion") ||
-			strings.Contains(manifestContent, "lpke"),
+			strings.Contains(manifestContent, "metadata") ||
+				strings.Contains(manifestContent, "schemaVersion") ||
+				strings.Contains(manifestContent, "lpke"),
 			"Manifest should contain expected structure (metadata/schemaVersion/lpke)")
 
 		if strings.Contains(manifestContent, "deploymentPackages") {
@@ -1937,7 +1937,7 @@ lpke:
 
 	log.Printf("✅ Mock manifest structure validated")
 	log.Printf("✅ Manifest contains required fields: metadata, lpke, deploymentPackages, deploymentList")
-	
+
 	// Verify we can identify the structure
 	suite.Require().True(strings.Contains(mockManifest, "metadata"), "Should have metadata section")
 	suite.Require().True(strings.Contains(mockManifest, "deploymentPackages"), "Should have deploymentPackages")
@@ -1963,12 +1963,12 @@ spec:
 
 	// Test uploading to catalog API (endpoint structure may vary)
 	uploadURL := fmt.Sprintf("http://localhost:8082/api/v3/projects/%s/packages", suite.testProjectUUID)
-	
+
 	uploadData := map[string]interface{}{
-		"file_name": "test-extension.yaml",
-		"content":   mockYAMLContent,
+		"file_name":    "test-extension.yaml",
+		"content":      mockYAMLContent,
 		"project_uuid": suite.testProjectUUID,
-		"last_file": true,
+		"last_file":    true,
 	}
 
 	jsonData, err := json.Marshal(uploadData)
@@ -1978,7 +1978,7 @@ spec:
 			defer resp.Body.Close()
 			body, _ := io.ReadAll(resp.Body)
 			log.Printf("Catalog package upload response: %d, body: %s", resp.StatusCode, string(body))
-			
+
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 				log.Printf("✅ Package uploaded to catalog successfully")
 			} else if resp.StatusCode == 404 {

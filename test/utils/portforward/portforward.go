@@ -23,17 +23,17 @@ func SetupTenantController(namespace string, localPort, remotePort int) error {
 }
 
 // SetupKeycloak sets up port forwarding to deployed Keycloak
-func SetupKeycloak(namespace string, localPort, remotePort int) error {
+func SetupKeycloak(_ string, localPort, _ int) error {
 	return setupPortForward("keycloak", "orch-platform", "platform-keycloak", localPort, 8080)
 }
 
 // SetupHarbor sets up port forwarding to deployed Harbor
-func SetupHarbor(namespace string, localPort, remotePort int) error {
+func SetupHarbor(_ string, localPort, remotePort int) error {
 	return setupPortForward("harbor", "orch-harbor", "harbor-oci-core", localPort, remotePort)
 }
 
 // SetupCatalog sets up port forwarding to deployed Catalog
-func SetupCatalog(namespace string, localPort, remotePort int) error {
+func SetupCatalog(_ string, localPort, _ int) error {
 	return setupPortForward("catalog", "orch-app", "app-orch-catalog-rest-proxy", localPort, 8081)
 }
 
