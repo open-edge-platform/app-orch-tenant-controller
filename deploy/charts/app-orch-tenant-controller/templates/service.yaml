@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: (C) 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "config-provisioner.name" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "config-provisioner.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8081
+      targetPort: 8081
+      protocol: TCP
+      name: grpc-health
+  selector:
+    {{- include "config-provisioner.labels" . | nindent 4 }}
