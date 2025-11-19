@@ -32,9 +32,19 @@ func SetupHarbor(_ string, localPort, remotePort int) error {
 	return setupPortForward("harbor", "orch-harbor", "harbor-oci-core", localPort, remotePort)
 }
 
-// SetupCatalog sets up port forwarding to deployed Catalog
+// SetupCatalog sets up port forwarding to deployed Catalog REST proxy
 func SetupCatalog(_ string, localPort, _ int) error {
 	return setupPortForward("catalog", "orch-app", "app-orch-catalog-rest-proxy", localPort, 8081)
+}
+
+// SetupADM sets up port forwarding to deployed ADM (App Deployment Manager)
+func SetupADM(_ string, localPort, _ int) error {
+	return setupPortForward("adm", "orch-app", "app-deployment-api-rest-proxy", localPort, 8081)
+}
+
+// SetupVault sets up port forwarding to deployed Vault
+func SetupVault(_ string, localPort, _ int) error {
+	return setupPortForward("vault", "orch-platform", "vault", localPort, 8200)
 }
 
 // setupPortForward establishes kubectl port-forward to deployed service
