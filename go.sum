@@ -215,8 +215,8 @@ github.com/onsi/ginkgo/v2 v2.22.0 h1:Yed107/8DjTr0lKCNt7Dn8yQ6ybuDRQoMGrNFKzMfHg
 github.com/onsi/ginkgo/v2 v2.22.0/go.mod h1:7Du3c42kxCUegi0IImZ1wUQzMBVecgIHjR1C+NkhLQo=
 github.com/onsi/gomega v1.36.1 h1:bJDPBO7ibjxcbHMgSCoo4Yj18UWbKDlLwX1x9sybDcw=
 github.com/onsi/gomega v1.36.1/go.mod h1:PvZbdDc8J6XJEpDK4HCuRBm8a6Fzp9/DmhC9C7yFlog=
-github.com/open-edge-platform/app-orch-catalog v0.15.3 h1:gljNuY14TVkZ9jJx3CdsmxB9p8KQwVljVz0Ae/eGifQ=
-github.com/open-edge-platform/app-orch-catalog v0.15.3/go.mod h1:drGTcyw7mtPN5VBxLqPAtd01PgQxY1P+GZLdAzmIW6M=
+github.com/open-edge-platform/app-orch-catalog v0.15.5 h1:/vxjN8Ak9sMnb0DgLvjwTDH3w6nB/ZUCDGGfeimacM4=
+github.com/open-edge-platform/app-orch-catalog v0.15.5/go.mod h1:lhvmdbgftx/Pdcb13C5OCv4QXJP/jSqq7D53ynInSJM=
 github.com/open-edge-platform/app-orch-deployment/app-deployment-manager/api/nbi/v2 v2.4.3 h1:h02ac5zLpPX+zg1SFq+EkDTMG+YAfmK9VmWVqGOulIc=
 github.com/open-edge-platform/app-orch-deployment/app-deployment-manager/api/nbi/v2 v2.4.3/go.mod h1:bG6RcGbU0K8msdb7MtFOKhPzNSjHWXtL6j8iHLzrx2w=
 github.com/open-edge-platform/orch-library/go v0.6.2 h1:JbZCtsWRKFenjZrUHdPVlpHl3gu0/vmUrjJ6SGc2Gyg=
