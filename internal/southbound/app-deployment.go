@@ -75,8 +75,8 @@ func (a *AppDeployment) ListDeploymentNames(ctx context.Context, projectID strin
 	existingDeployments := admResp.GetDeployments()
 	existingDisplayNames := make(map[string]string)
 	for _, dep := range existingDeployments {
-		log.Infof("displayName : %s", dep.DisplayName)
-		existingDisplayNames[dep.DisplayName] = dep.DisplayName
+		log.Infof("displayName : %s, version: %s", dep.DisplayName, dep.AppVersion)
+		existingDisplayNames[dep.DisplayName] = dep.AppVersion  // Store version instead of display name
 	}
 
 	log.Infof("display name list size : %d", len(existingDisplayNames))

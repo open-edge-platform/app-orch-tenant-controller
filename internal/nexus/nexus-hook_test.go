@@ -16,10 +16,11 @@ type MockProjectManager struct {
 	created []string
 }
 
-func (m *MockProjectManager) CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface) {
+func (m *MockProjectManager) CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface, action string) {
 	_ = orgName
 	_ = projectUUID
 	_ = project
+	_ = action
 	m.created = append(m.created, projectName)
 }
 
@@ -31,7 +32,7 @@ func (m *MockProjectManager) DeleteProject(orgName string, projectName string, p
 }
 
 func (m *MockProjectManager) ManifestTag() string {
-	return ""
+	return "v1.3.5"
 }
 
 type NexusHookTestSuite struct {

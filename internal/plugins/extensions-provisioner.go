@@ -46,7 +46,7 @@ type Manifest struct {
 }
 
 type AppDeployment interface {
-	ListDeploymentNames(ctx context.Context, projectID string) (map[string]string, error)
+	ListDeploymentNames(ctx context.Context, projectID string) (map[string]string, error) // Returns map[displayName]version
 	CreateDeployment(ctx context.Context, dpName string, displayName string, version string, profileName string, projectID string, labels map[string]string) error
 	DeleteDeployment(ctx context.Context, dpName string, displayName string, version string, profileName string, projectID string, missingOkay bool) error
 }
@@ -132,7 +132,7 @@ func (p *ExtensionsProvisionerPlugin) Initialize(ctx context.Context, _ PluginDa
 	return nil
 }
 
-func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Event, _ PluginData) error {
+func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Event, data PluginData) error {
 	var err error
 
 	var yamlBytes []byte
@@ -186,6 +186,7 @@ func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Eve
 		return err
 	}
 	defer pkgOras.Close()
+	
 	for _, dp := range manifest.Lpke.DeploymentPackages {
 		if strings.EqualFold(dp.DesiredState, DesiredStateAbsent) {
 			// TODO: implement deletion of deployment packages. We need to do this _after_ the deployments are deleted.
@@ -238,9 +239,30 @@ func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Eve
 					return err
 				}
 			} else {
-				if _, exists := existingDisplayNames[dl.DisplayName]; exists {
-					log.Infof("Deployment with displayName %s already exists, skipping creation", dl.DisplayName)
-					continue
+				if existingVersion, exists := existingDisplayNames[dl.DisplayName]; exists {
+					// Check if this is an update scenario (manifest tag changed)
+					// Only delete and recreate if the APPLICATION version has actually changed
+					// Note: dl.DpVersion is the APPLICATION version (e.g., cert-manager:1.16.2)
+					//       NOT the deployment package version (e.g., cert-manager package v0.1.0)
+					if action, ok := (*data)["action"]; ok && action == "update" {
+						if existingVersion != dl.DpVersion {
+							log.Infof("Manifest tag changed and APPLICATION version differs (existing: %s, new: %s) - deleting existing deployment %s before recreating", 
+								existingVersion, dl.DpVersion, dl.DisplayName)
+							err = ad.DeleteDeployment(ctx, dl.DpName, dl.DisplayName, existingVersion, dl.DpProfileName, uuid, false)
+							if err != nil {
+								log.Errorf("Failed to delete existing deployment %s for manifest tag update: %v", dl.DisplayName, err)
+								return err
+							}
+							log.Infof("Successfully deleted deployment %s for manifest tag update", dl.DisplayName)
+						} else {
+							log.Infof("Manifest tag changed but APPLICATION version unchanged (%s), skipping recreate to avoid unnecessary updates", 
+								dl.DpVersion)
+							continue
+						}
+					} else {
+						log.Infof("Deployment with displayName %s already exists, skipping creation", dl.DisplayName)
+						continue
+					}
 				}
 
 				labels := map[string]string{}

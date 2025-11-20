@@ -19,6 +19,7 @@ type Event struct {
 	Name         string
 	UUID         string
 	Project      nexushook.NexusProjectInterface
+	Action       string // "created" or "update" - indicates if this is a manifest tag update
 }
 
 type PluginData *map[string]string
@@ -47,7 +48,9 @@ func Initialize(ctx context.Context) error {
 }
 
 func Dispatch(ctx context.Context, event Event, hook *nexushook.Hook) error {
-	data := &map[string]string{}
+	data := &map[string]string{
+		"action": event.Action, // Pass action to plugins
+	}
 	var err error
 	for _, plugin := range plugins {
 		log.Infof("Sending event %v to %s", event, plugin.Name())

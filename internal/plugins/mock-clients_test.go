@@ -286,7 +286,7 @@ func (t *testADM) ListDeploymentNames(_ context.Context, _ string) (map[string]s
 	displayName := make(map[string]string)
 	for _, md := range mockDeployments {
 		if md.name != "" {
-			displayName[md.name] = md.name
+			displayName[md.name] = md.version  // Return version instead of name
 		}
 	}
 	return displayName, nil
