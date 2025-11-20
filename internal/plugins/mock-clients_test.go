@@ -51,6 +51,42 @@ func (c *testCatalog) ListRegistries(_ context.Context) error {
 	return nil
 }
 
+// mockDynamicCatalog is a mock Catalog that allows dynamic behavior
+type mockDynamicCatalog struct {
+	listRegistriesFunc         func(ctx context.Context) error
+	initializeClientSecretFunc func(ctx context.Context) (string, error)
+}
+
+func (m *mockDynamicCatalog) ListRegistries(ctx context.Context) error {
+	if m.listRegistriesFunc != nil {
+		return m.listRegistriesFunc(ctx)
+	}
+	return nil
+}
+
+func (m *mockDynamicCatalog) InitializeClientSecret(ctx context.Context) (string, error) {
+	if m.initializeClientSecretFunc != nil {
+		return m.initializeClientSecretFunc(ctx)
+	}
+	return "", nil
+}
+
+func (m *mockDynamicCatalog) CreateOrUpdateRegistry(_ context.Context, _ southbound.RegistryAttributes) error {
+	return nil
+}
+
+func (m *mockDynamicCatalog) UploadYAMLFile(_ context.Context, _ string, _ string, _ []byte, _ bool) error {
+	return nil
+}
+
+func (m *mockDynamicCatalog) ListPublishers(_ context.Context) error {
+	return nil
+}
+
+func (m *mockDynamicCatalog) WipeProject(_ context.Context, _ string, _ string) error {
+	return nil
+}
+
 func (c *testCatalog) UploadYAMLFile(_ context.Context, _ string, filePath string, artifact []byte, lastFile bool) error {
 	_, fileName := filepath.Split(filePath)
 	uploadedFile := upload{

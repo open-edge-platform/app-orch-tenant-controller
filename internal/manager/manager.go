@@ -40,6 +40,7 @@ func (m *Manager) Run() {
 	_ = os.Chdir(workingDirectory)
 	if err := m.Start(); err != nil {
 		log.Errorf("Unable to run Manager %v", err)
+		log.Fatal("Manager failed to start - exiting to allow Kubernetes restart")
 	}
 }
 

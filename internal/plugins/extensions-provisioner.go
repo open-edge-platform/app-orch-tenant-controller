@@ -5,6 +5,7 @@ package plugins
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -83,31 +84,51 @@ func NewExtensionsProvisionerPlugin(configuration config.Configuration) (*Extens
 	return plugin, nil
 }
 
-func (p *ExtensionsProvisionerPlugin) waitForADM(ctx context.Context) {
+func (p *ExtensionsProvisionerPlugin) waitForADM(ctx context.Context) error {
 	if p.configuration.AdmServer == "" {
 		log.Info("No admServer is set, skipping wait")
-		return
+		return nil
 	}
 
 	log.Infof("Waiting for app deployment manager %s", p.configuration.AdmServer)
-	ad, _ := AppDeploymentFactory(p.configuration)
+	ad, err := AppDeploymentFactory(p.configuration)
+	if err != nil {
+		return fmt.Errorf("failed to create ADM client: %w", err)
+	}
 
-	for {
-		var cancel context.CancelFunc
-		var lctx context.Context
-		lctx, cancel = context.WithTimeout(ctx, 10*time.Second)
+	maxRetries := 12 // Total wait time: ~5 minutes
+	retryDelay := 5 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		lctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		_, err := ad.ListDeploymentNames(lctx, "")
 		cancel()
+
 		if err == nil || strings.Contains(err.Error(), "Unauthenticated") {
-			break
+			log.Info("App deployment manager ready")
+			return nil
 		}
-		time.Sleep(5 * time.Second)
+
+		if attempt == maxRetries {
+			return fmt.Errorf("ADM not available after %d attempts: %w", maxRetries, err)
+		}
+
+		log.Infof("ADM ping failed (attempt %d/%d): %v. Retrying in %v...", attempt, maxRetries, err, retryDelay)
+		time.Sleep(retryDelay)
+
+		retryDelay = retryDelay * 2
+		if retryDelay > 60*time.Second {
+			retryDelay = 60 * time.Second
+		}
 	}
-	log.Info("App deployment manager ready")
+
+	return fmt.Errorf("ADM not available after maximum retries")
 }
 
-func (p *ExtensionsProvisionerPlugin) Initialize(_ context.Context, _ PluginData) error {
-	p.waitForADM(context.Background())
+func (p *ExtensionsProvisionerPlugin) Initialize(ctx context.Context, _ PluginData) error {
+	if err := p.waitForADM(ctx); err != nil {
+		return fmt.Errorf("extensions initialization failed during ADM check: %w", err)
+	}
 	return nil
 }
 
