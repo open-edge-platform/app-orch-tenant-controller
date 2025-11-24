@@ -32,16 +32,12 @@ jobs:
     runs-on: ubuntu-24.04-16core-64GB # ubuntu-24.04-4core-16GB ubuntu-22.04-32core-128GB & ubuntu-24.04-16core-64GB
     timeout-minutes: 60
     env:
-      ORCH_DEFAULT_PASSWORD: 'ChangeMeOn1stLogin!'
+      ORCH_DEFAULT_PASSWORD: ${{ secrets.ORCH_DEFAULT_PASSWORD }}
       CODER_DIR: ${{ github.workspace }}
 
     steps:
       - name: Verify required secrets and environment
-        run: |
-          echo "Using fallback authentication approach..."
-          echo "✅ ORCH_DEFAULT_PASSWORD: Using hardcoded fallback 'ChangeMeOn1stLogin!' (meets 14+ char requirement)"
-          echo "ℹ️  Docker Hub credentials: Skipped (not required for public images)"
-          
+        run: |          
           if [ -z "${{ secrets.SYS_ORCH_GITHUB }}" ]; then
             echo "❌ ERROR: secrets.SYS_ORCH_GITHUB is not set"
             exit 1
@@ -57,7 +53,7 @@ jobs:
         timeout-minutes: 45
         with:
           orch_version: ${{ inputs.emf-branch || 'main' }}
-          orch_password: 'ChangeMeOn1stLogin!'
+          orch_password: ${{ env.ORCH_DEFAULT_PASSWORD }}
           # Skip Docker Hub credentials since they're not available
           # docker_username: ${{ secrets.SYS_DOCKERHUB_USERNAME }}
           # docker_password: ${{ secrets.SYS_DOCKERHUB_RO }}
@@ -65,7 +61,7 @@ jobs:
           deployment_type: 'all'
         env:
           # Provide a default password since secret is not available
-          ORCH_DEFAULT_PASSWORD: 'ChangeMeOn1stLogin!'
+          ORCH_DEFAULT_PASSWORD: ${{ env.ORCH_DEFAULT_PASSWORD }}
 
       - name: Configure kubectl for Kind cluster
         run: |
