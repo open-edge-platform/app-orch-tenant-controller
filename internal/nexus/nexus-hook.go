@@ -5,6 +5,7 @@ package nexus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/open-edge-platform/orch-library/go/dazl"
 	projectActiveWatcherv1 "github.com/open-edge-platform/orch-utils/tenancy-datamodel/build/apis/projectactivewatcher.edge-orchestrator.intel.com/v1"
@@ -35,7 +36,7 @@ const (
 )
 
 type ProjectManager interface {
-	CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface)
+	CreateProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface, action string)
 	DeleteProject(orgName string, projectName string, projectUUID string, project NexusProjectInterface)
 	ManifestTag() string
 }
@@ -189,7 +190,11 @@ func (h *Hook) UpdateProjectManifestTag(proj NexusProjectInterface) error {
 	}
 	if watcherObj != nil {
 		log.Debug("Setting watcher annotations")
-		annotations := make(map[string]string)
+		// Preserve existing annotations and update only the manifest tag
+		annotations := watcherObj.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
 		annotations[ManifestTagAnnotationKey] = h.dispatcher.ManifestTag()
 		watcherObj.SetAnnotations(annotations)
 		return watcherObj.Update(context.Background())
@@ -318,26 +323,72 @@ func (h *Hook) projectCreated(project NexusProjectInterface) error {
 	})
 
 	if err != nil {
-		log.Errorf("Failed to create ProjectActiveWatcher object with an error: %v", err)
-		return err
+		// Handle the case where watcher already exists (upgrade scenario)
+		if strings.Contains(err.Error(), "already exists") {
+			log.Infof("ActiveWatcher already exists for project %s, retrieving existing watcher", project.DisplayName())
+			watcherObj, err = project.GetActiveWatchers(ctx, appName)
+			if err != nil {
+				log.Errorf("Failed to get existing ProjectActiveWatcher object with an error: %v", err)
+				return err
+			}
+			if watcherObj == nil {
+				log.Errorf("Existing ProjectActiveWatcher object is nil for project %s", project.DisplayName())
+				return errors.New("existing watcher is nil")
+			}
+		} else {
+			log.Errorf("Failed to create ProjectActiveWatcher object with an error: %v", err)
+			return err
+		}
 	}
 
 	var action string
 
+	// Always check manifest tag, regardless of watcher status
+	// This ensures we handle upgrade scenarios where existing watchers lack manifest tags
+	annotations := watcherObj.GetAnnotations()
+	currentTag := ""
+	if annotations != nil {
+		currentTag = annotations[ManifestTagAnnotationKey]
+	}
+	expectedTag := h.dispatcher.ManifestTag()
+	
+	// Check if watcher is already properly provisioned and has correct manifest tag
+	if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && 
+		watcherObj.GetSpec().Message == "Created" && 
+		currentTag == expectedTag {
+		// Everything is correct, no need to reprocess
+		log.Infof("Watch %s for project %s already provisioned with correct manifest tag %s", 
+			watcherObj.DisplayName(), project.DisplayName(), currentTag)
+		return nil
+	}
+	
+	// If we reach here, we need to process/update the project
 	if watcherObj.GetSpec().StatusIndicator == projectActiveWatcherv1.StatusIndicationIdle && watcherObj.GetSpec().Message == "Created" {
-		// This is a rerun of an event we already processed - check for update
-		log.Infof("Watch %s for project %s already provisioned", watcherObj.DisplayName(), project.DisplayName())
-		log.Debugf("existing watcher annotations are: %+v", watcherObj.GetAnnotations())
-		annotations := watcherObj.GetAnnotations()
-		if annotations[ManifestTagAnnotationKey] == h.dispatcher.ManifestTag() {
-			// Manifest tag is correct
-			log.Infof("Manifest tag is correct, no need to update")
-			return nil
-		}
-		log.Infof("Manifest tag is not correct, updating. Have %s, want %s", annotations[ManifestTagAnnotationKey], h.dispatcher.ManifestTag())
+		log.Infof("Watch %s for project %s already provisioned but manifest tag needs update. Have '%s', want '%s'", 
+			watcherObj.DisplayName(), project.DisplayName(), currentTag, expectedTag)
+		action = "update"
+	} else if currentTag != expectedTag {
+		log.Infof("Manifest tag missing or incorrect for project %s. Have '%s', want '%s'. Current status: %s", 
+			project.DisplayName(), currentTag, expectedTag, watcherObj.GetSpec().StatusIndicator)
 		action = "update"
 	} else {
 		action = "created"
+	}
+	
+	// Always ensure manifest tag is set correctly before processing
+	if currentTag != expectedTag {
+		log.Infof("Setting manifest tag for project %s from '%s' to '%s'", project.DisplayName(), currentTag, expectedTag)
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations[ManifestTagAnnotationKey] = expectedTag
+		watcherObj.SetAnnotations(annotations)
+		err = watcherObj.Update(context.Background())
+		if err != nil {
+			log.Errorf("Failed to update manifest tag annotation: %v", err)
+			return err
+		}
+		log.Infof("Successfully updated manifest tag for project %s to %s", project.DisplayName(), expectedTag)
 	}
 
 	if nexus.IsAlreadyExists(err) {
@@ -354,7 +405,7 @@ func (h *Hook) projectCreated(project NexusProjectInterface) error {
 		// If there is an error, validateArgs() will also set the watcher status appropriately.
 		return err
 	}
-	h.dispatcher.CreateProject(organizationName, project.DisplayName(), project.GetUID(), project)
+	h.dispatcher.CreateProject(organizationName, project.DisplayName(), project.GetUID(), project, action)
 
 	log.Infof("Active watcher %s %s created for Project %s", watcherObj.DisplayName(), action, project.DisplayName())
 
