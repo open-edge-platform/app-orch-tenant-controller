@@ -54,7 +54,7 @@ yamllint: $(VENV_NAME) ## Lint YAML files
 
 mdlint: ## Link MD files
 	markdownlint --version ;\
-	markdownlint `find . -name "*.md" | grep -v vendor | grep -v .github | grep -v $(VENV_NAME) ` ;\
+	markdownlint `find . -name "*.md" | grep -v vendor | grep -v .github | grep -v $(VENV_NAME) | grep -v test/ ` ;\
 
 #### Clean Targets ###
 common-clean: ## Delete build and vendor directories

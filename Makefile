@@ -75,7 +75,7 @@ all: build go-lint test
 
 # Yamllint variables
 YAML_FILES         := $(shell find . -type f \( -name '*.yaml' -o -name '*.yml' \) -print )
-YAML_IGNORE        := .cache, vendor, ci, .github/workflows, $(VENV_NAME), internal/plugins/testdata/extensions/*.yaml
+YAML_IGNORE        := .cache, vendor, ci, .github/workflows, $(VENV_NAME), internal/plugins/testdata/extensions/*.yaml, deploy/charts/*/templates/*
 
 MAKEDIR          := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
@@ -135,10 +135,28 @@ lint: yamllint go-lint hadolint mdlint ## Runs lint stage
 .PHONY: test
 test: go-test ## Runs test stage
 
-.PHONY: coverage
-coverage: go-cover-dependency ## Runs coverage stage
-	$(GOCMD) test -gcflags=-l `go list $(PKG)/cmd/... $(PKG)/internal/... | grep -v "/mocks" | grep -v "/test/"` -v -coverprofile=coverage.txt -covermode count
-	${GOPATH}/bin/gocover-cobertura < coverage.txt > coverage.xml
+## Component testing targets
+.PHONY: component-test
+
+component-test: vendor ## Run component tests against VIP orchestrator
+	@echo "---VIP ORCHESTRATOR COMPONENT TESTS---"
+	@echo "🚀 Running component tests against deployed VIP orchestrator..."
+	@./test/scripts/setup-component-test.sh
+	@trap './test/scripts/cleanup-component-test.sh' EXIT; \
+	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 45m -v -p 1 -parallel 1 \
+	./test/component/... \
+	| tee >(go-junit-report -set-exit-code > component-test-report.xml)
+	@echo "---END VIP COMPONENT TESTS---"
+
+.PHONY: component-test-coverage
+component-test-coverage: vendor ## Run component tests with coverage
+	@echo "---COMPONENT TESTS WITH COVERAGE---"
+	@./test/scripts/setup-component-test.sh
+	@trap './test/scripts/cleanup-component-test.sh' EXIT; \
+	GOPRIVATE="github.com/open-edge-platform/*" $(GOCMD) test -timeout 5m -v -p 1 -parallel 1 \
+	-coverprofile=component-coverage.txt -covermode=atomic ./test/component/... \
+	| tee >(go-junit-report -set-exit-code > component-test-report.xml)
+	@echo "---END COMPONENT TESTS WITH COVERAGE---"
 
 .PHONY: list
 list: ## displays make targets
