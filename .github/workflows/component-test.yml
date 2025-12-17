@@ -38,11 +38,11 @@ jobs:
     steps:
       - name: Verify required secrets and environment
         run: |          
-          if [ -z "${{ secrets.SYS_ORCH_GITHUB }}" ]; then
-            echo "❌ ERROR: secrets.SYS_ORCH_GITHUB is not set"
+          if [ -z "${{ secrets.SYS_EMF_GH_TOKEN }}" ]; then
+            echo "❌ ERROR: secrets.SYS_EMF_GH_TOKEN is not set"
             exit 1
           else
-            echo "✅ secrets.SYS_ORCH_GITHUB is available"
+            echo "✅ secrets.SYS_EMF_GH_TOKEN is available"
           fi
           
           echo "Environment setup complete!"
@@ -57,7 +57,7 @@ jobs:
           # Skip Docker Hub credentials since they're not available
           # docker_username: ${{ secrets.SYS_DOCKERHUB_USERNAME }}
           # docker_password: ${{ secrets.SYS_DOCKERHUB_RO }}
-          token: ${{ secrets.SYS_ORCH_GITHUB }}
+          token: ${{ secrets.SYS_EMF_GH_TOKEN }}
           deployment_type: 'all'
         env:
           # Provide a default password since secret is not available
@@ -109,7 +109,7 @@ jobs:
         with:
           repository: open-edge-platform/app-orch-tenant-controller
           path: app-orch-tenant-controller
-          token: ${{ secrets.SYS_ORCH_GITHUB }}
+          token: ${{ secrets.SYS_EMF_GH_TOKEN }}
           persist-credentials: false
 
       - name: Get current git hash of the app-orch-tenant-controller PR

@@ -36,4 +36,4 @@ jobs:
       - name: Update pull requests
         uses: open-edge-platform/orch-ci/.github/actions/pr_updater@79c4381f9be567527d8782094317b0282493e45a   # 0.1.66
         with:
-          github_token: ${{ secrets.SYS_ORCH_GITHUB }}
+          github_token: ${{ secrets.SYS_EMF_GH_TOKEN }}
