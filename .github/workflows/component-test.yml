@@ -35,7 +35,7 @@ jobs:
       ORCH_DEFAULT_PASSWORD: ${{ secrets.ORCH_DEFAULT_PASSWORD }}
       SYS_EMF_GH_TOKEN: ${{ secrets.SYS_EMF_GH_TOKEN }}
       CODER_DIR: ${{ github.workspace }}
-    
+
     steps:
       - name: Verify required secrets and environment
         run: |          
