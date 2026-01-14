@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+//nolint:revive // Internal package
 package plugins
 
 import (
@@ -205,7 +206,7 @@ func (p *ExtensionsProvisionerPlugin) CreateEvent(ctx context.Context, event Eve
 		for i, entry := range entries {
 			var artifact []byte
 			fileName := pkgOras.Dest() + "/" + entry.Name()
-			artifact, err = os.ReadFile(fileName)
+			artifact, err = os.ReadFile(fileName) //nolint:gosec // File path is controlled
 			if err != nil {
 				return err
 			}

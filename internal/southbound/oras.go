@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+//nolint:revive // Internal package
 package southbound
 
 import (
@@ -52,7 +53,7 @@ func (o *Oras) Load(manifestPath string, manifestTag string) error {
 	if err != nil {
 		return err
 	}
-	defer fs.Close()
+	defer fs.Close() //nolint:errcheck // Defer close is acceptable here
 
 	ctx, cancel := context.WithTimeout(context.Background(), orasLoadTimeout)
 	defer cancel()

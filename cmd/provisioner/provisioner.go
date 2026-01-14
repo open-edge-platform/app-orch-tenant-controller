@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+//nolint:revive // Main package
 package main
 
 import (
