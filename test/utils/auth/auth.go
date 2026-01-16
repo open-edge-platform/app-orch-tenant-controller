@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+//nolint:revive // Test utility package
 package auth
 
 import (
@@ -51,7 +52,7 @@ func GetKeycloakToken(_ context.Context, keycloakURL, username, password string)
 		// For component tests, return a test token if service not available
 		return "component-test-token"
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // Defer close is acceptable here
 
 	// Read response from Keycloak
 	body, err := io.ReadAll(resp.Body)
