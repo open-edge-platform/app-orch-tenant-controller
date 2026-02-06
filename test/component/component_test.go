@@ -726,9 +726,9 @@ func (suite *ComponentTestSuite) testVerifyAllRealServicesDeployed() {
 		namespace     string
 		labelSelector string
 	}{
-		{"keycloak", "orch-platform", "app.kubernetes.io/name=keycloak"},
-		{"harbor", "orch-harbor", "app.kubernetes.io/component=core"},
-		{"catalog", "orch-app", "app.kubernetes.io/name=app-orch-catalog"},
+		{"keycloak", "orch-platform", "app=keycloak-tenant-controller-pod"},
+		{"harbor", "orch-harbor", "app=harbor,component=core"},
+		{"catalog", "orch-app", "app.kubernetes.io/instance=app-orch-catalog"},
 		{"vault", "orch-platform", "app.kubernetes.io/name=vault"},
 		{"adm", "orch-app", "app=app-deployment-api"},
 	}
