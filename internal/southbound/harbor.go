@@ -145,6 +145,8 @@ func (h *HarborOCI) Configurations(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer func() { _ = resp.Body.Close() }()
+	
 	if resp.StatusCode != http.StatusOK {
 		responseBody, _ := io.ReadAll(resp.Body)
 		responseJSON := string(responseBody)
@@ -209,6 +211,8 @@ func (h *HarborOCI) SetMemberPermissions(ctx context.Context, roleID int, org st
 	if err != nil {
 		return err
 	}
+	defer func() { _ = resp.Body.Close() }()
+	
 	if !(resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusConflict) {
 		responseBody, _ := io.ReadAll(resp.Body)
 		responseJSON := string(responseBody)
@@ -229,6 +233,8 @@ func (h *HarborOCI) GetProjectID(ctx context.Context, org string, displayName st
 	if err != nil {
 		return 0, err
 	}
+	defer func() { _ = resp.Body.Close() }()
+	
 	if resp.StatusCode != http.StatusOK {
 		responseBody, _ := io.ReadAll(resp.Body)
 		responseJSON := string(responseBody)
@@ -311,10 +317,11 @@ func (h *HarborOCI) CreateRobot(ctx context.Context, robotName string, org strin
 	if err != nil {
 		return "", "", err
 	}
+	defer func() { _ = resp.Body.Close() }()
+	
 	createRobotResponseBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusCreated {
-		responseBody, _ := io.ReadAll(resp.Body)
-		responseJSON := string(responseBody)
+		responseJSON := string(createRobotResponseBody)
 		return "", "", fmt.Errorf("%s", responseJSON)
 	}
 	createRobotResponse := &CreateRobotResponse{}
@@ -355,6 +362,8 @@ func (h *HarborOCI) GetRobot(ctx context.Context, org string, displayName string
 	if err != nil {
 		return nil, err
 	}
+	defer func() { _ = resp.Body.Close() }()
+	
 	if resp.StatusCode != http.StatusOK {
 		responseBody, _ := io.ReadAll(resp.Body)
 		responseJSON := string(responseBody)
@@ -382,6 +391,7 @@ func (h *HarborOCI) DeleteRobot(ctx context.Context, robotID int) error {
 	if err != nil {
 		return err
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
 		responseBody, _ := io.ReadAll(resp.Body)
@@ -398,6 +408,7 @@ func (h *HarborOCI) DeleteProject(ctx context.Context, org string, displayName s
 	if err != nil {
 		return err
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
 		responseBody, _ := io.ReadAll(resp.Body)
@@ -414,6 +425,7 @@ func (h *HarborOCI) Ping(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		responseBody, _ := io.ReadAll(resp.Body)
