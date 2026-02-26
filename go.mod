@@ -7,7 +7,7 @@ module github.com/open-edge-platform/app-orch-tenant-controller
 go 1.25.7
 
 require (
-	github.com/open-edge-platform/app-orch-catalog v0.16.0
+	github.com/open-edge-platform/app-orch-catalog v0.16.1
 	github.com/open-edge-platform/app-orch-deployment/app-deployment-manager/api/nbi/v2 v2.4.3
 	github.com/open-edge-platform/orch-library/go v0.6.3
 	github.com/open-edge-platform/orch-library/go/dazl v0.5.4
