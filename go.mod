@@ -14,13 +14,13 @@ require (
 	github.com/open-edge-platform/orch-library/go/dazl/zap v0.5.4
 	github.com/open-edge-platform/orch-utils/tenancy-datamodel v1.2.2
 	github.com/stretchr/testify v1.11.1
-	google.golang.org/grpc v1.79.1
+	google.golang.org/grpc v1.79.2
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.35.2
 	k8s.io/client-go v0.35.2
 	oras.land/oras-go/v2 v2.6.0
-	sigs.k8s.io/controller-runtime v0.23.1
+	sigs.k8s.io/controller-runtime v0.23.3
 )
 
 require (
