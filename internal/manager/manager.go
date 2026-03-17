@@ -79,9 +79,25 @@ func (m *Manager) Start() error {
 
 	// Create a new Nexus hook.
 	m.NexusHook = nexushook.NewNexusHook(m)
-	err = m.NexusHook.Subscribe()
-	if err != nil {
-		log.Errorf("Unable to subscribe to Nexus hook %v", err)
+
+	if m.Config.MultiTenancyEnabled {
+		// Multi-tenant mode: subscribe to Nexus for project lifecycle events.
+		err = m.NexusHook.Subscribe()
+		if err != nil {
+			log.Errorf("Unable to subscribe to Nexus hook %v", err)
+		}
+	} else {
+		// Single-tenant mode: provision the default project once at startup,
+		// then wait. No Nexus subscription is needed.
+		log.Info("Multi-tenancy disabled: provisioning default project at startup")
+		m.eventChan = make(chan plugins.Event)
+		for i := 0; i < m.Config.NumberWorkerThreads; i++ {
+			go m.eventWorker(i)
+		}
+		m.CreateProject("defaultorg", "default", "default", nil)
+		ready := make(chan os.Signal, 1)
+		<-ready
+		return nil
 	}
 
 	// set up event handling workers

@@ -128,6 +128,9 @@ spec:
         # for overriding the manifest
         - name: USE_LOCAL_MANIFEST
           value: {{ .Values.configProvisioner.useLocalManifest | quote }}
+        # multi-tenancy mode: set to "false" for single-tenant deployments
+        - name: MULTI_TENANCY_ENABLED
+          value: {{ .Values.configProvisioner.multiTenancyEnabled | quote }}
 
         {{- with .Values.resources }}
         resources:

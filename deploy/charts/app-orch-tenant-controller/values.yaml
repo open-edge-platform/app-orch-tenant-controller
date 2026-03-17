@@ -38,6 +38,11 @@ configProvisioner:
   # When true, the provisioner uses the M2M token to access cluster services. Set this for production deployments
   useM2MToken: false
 
+  # multiTenancyEnabled controls whether the provisioner subscribes to Nexus for project lifecycle events.
+  # Set to false for single-tenant deployments: the provisioner will provision only a default project at startup.
+  # Defaults to true for backward compatibility with multi-tenant deployments.
+  multiTenancyEnabled: true
+
   # service address configurations
   harborServer: http://harbor-oci-core.orch-harbor.svc.cluster.local:80
   catalogServer: catalog-service-grpc-server.orch-app.svc.cluster.local:8080

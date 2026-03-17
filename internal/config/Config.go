@@ -83,6 +83,11 @@ type Configuration struct {
 
 	// if this string is nonempty, provisioner will use a local manifest contianed in the string instead of using manifest from remote release service
 	UseLocalManifest string
+
+	// MultiTenancyEnabled controls whether multi-tenancy features are active.
+	// When false (single-tenant mode), the tenant controller skips Nexus subscription
+	// and instead provisions a single default project at startup.
+	MultiTenancyEnabled bool
 }
 
 func DumpConfig(config Configuration) {
@@ -109,6 +114,7 @@ func DumpConfig(config Configuration) {
 	log.Infof("   maxWaitTime: %s", config.MaxWaitTime)
 	log.Infof("   numberWorkerThreads: %d", config.NumberWorkerThreads)
 	log.Infof("   useLocalManifest: %s", config.UseLocalManifest)
+	log.Infof("   multiTenancyEnabled: %v", config.MultiTenancyEnabled)
 }
 
 func InitConfig() (Configuration, error) {
@@ -131,6 +137,15 @@ func InitConfig() (Configuration, error) {
 	config.ReleaseServiceBase = os.Getenv("RELEASE_SERVICE_BASE")
 	config.ServiceAccount = os.Getenv("SERVICE_ACCOUNT")
 	config.UseLocalManifest = os.Getenv("USE_LOCAL_MANIFEST")
+
+	// MultiTenancyEnabled defaults to true for backward compatibility.
+	// Set MULTI_TENANCY_ENABLED=false to run in single-tenant mode (skips Nexus subscription).
+	multiTenancyEnabledStr := os.Getenv("MULTI_TENANCY_ENABLED")
+	if multiTenancyEnabledStr == "false" {
+		config.MultiTenancyEnabled = false
+	} else {
+		config.MultiTenancyEnabled = true
+	}
 
 	var err error
 
