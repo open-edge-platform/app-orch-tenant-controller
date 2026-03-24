@@ -120,16 +120,20 @@ func (m *Manager) eventWorker(id int) {
 		err := m.handleProjectEvent(event)
 		if err != nil {
 			log.Errorf("Unable to handle project event: %v", err)
-			err = m.NexusHook.SetWatcherStatusError(event.Project, err.Error())
-			if err != nil {
-				log.Errorf("Unable to set watcher error status: %v", err)
+			if event.Project != nil {
+				err = m.NexusHook.SetWatcherStatusError(event.Project, err.Error())
+				if err != nil {
+					log.Errorf("Unable to set watcher error status: %v", err)
+				}
 			}
 		} else {
 			// After processing, set the status to IDLE.
-			setStatusErr := m.NexusHook.SetWatcherStatusIdle(event.Project)
-			if setStatusErr != nil {
-				log.Errorf("Failed to update ProjectActiveWatcher object with an error: %v", setStatusErr)
-				return
+			if event.Project != nil {
+				setStatusErr := m.NexusHook.SetWatcherStatusIdle(event.Project)
+				if setStatusErr != nil {
+					log.Errorf("Failed to update ProjectActiveWatcher object with an error: %v", setStatusErr)
+					return
+				}
 			}
 			if event.EventType == "delete" {
 				// free up the project watcher
@@ -169,9 +173,11 @@ func (m *Manager) handleProjectEvent(event plugins.Event) error {
 			break
 		}
 
-		err = m.NexusHook.SetWatcherStatusInProgress(event.Project, fmt.Sprintf("Retry backoff for project %s. Last error was %s", event.Name, err.Error()))
-		if err != nil {
-			return err
+		if event.Project != nil {
+			err = m.NexusHook.SetWatcherStatusInProgress(event.Project, fmt.Sprintf("Retry backoff for project %s. Last error was %s", event.Name, err.Error()))
+			if err != nil {
+				return err
+			}
 		}
 		log.Infof("Retrying in %d seconds", int(sleepInterval.Seconds()))
 		time.Sleep(sleepInterval)
