@@ -90,6 +90,7 @@ type Configuration struct {
 	MultiTenancyEnabled bool
 }
 
+// DumpConfig logs the current configuration values.
 func DumpConfig(config Configuration) {
 	log.Info("Creating Manager with config:")
 

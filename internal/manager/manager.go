@@ -83,6 +83,16 @@ func (m *Manager) Start() error {
 	// Create a new Nexus hook.
 	m.NexusHook = nexushook.NewNexusHook(m)
 
+	if m.Config.NumberWorkerThreads < 1 {
+		return fmt.Errorf("NumberWorkerThreads must be at least 1, got %d", m.Config.NumberWorkerThreads)
+	}
+
+	// Shared: set up event channel and worker goroutines for both modes.
+	m.eventChan = make(chan plugins.Event, 1)
+	for i := 0; i < m.Config.NumberWorkerThreads; i++ {
+		go m.eventWorker(i)
+	}
+
 	if m.Config.MultiTenancyEnabled {
 		// Multi-tenant mode: subscribe to Nexus for project lifecycle events.
 		err = m.NexusHook.Subscribe()
@@ -90,34 +100,15 @@ func (m *Manager) Start() error {
 			log.Errorf("Unable to subscribe to Nexus hook %v", err)
 		}
 	} else {
-		// Single-tenant mode: provision the default project once at startup,
-		// then wait for a termination signal. No Nexus subscription is needed.
-		log.Info("Multi-tenancy disabled: provisioning default project at startup")
-		if m.Config.NumberWorkerThreads < 1 {
-			return fmt.Errorf("NumberWorkerThreads must be at least 1, got %d", m.Config.NumberWorkerThreads)
-		}
-		m.eventChan = make(chan plugins.Event, 1)
-		for i := 0; i < m.Config.NumberWorkerThreads; i++ {
-			go m.eventWorker(i)
-		}
+		log.Info("Multi-tenancy disabled: provisioning default project")
 		m.CreateProject("defaultorg", "default", "default", nil)
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-		<-quit
-		log.Info("Received shutdown signal, exiting")
-		return nil
 	}
 
-	// set up event handling workers
-	m.eventChan = make(chan plugins.Event)
-
-	for i := 0; i < m.Config.NumberWorkerThreads; i++ {
-		go m.eventWorker(i)
-	}
-
-	// Wait until interrupted
-	ready := make(chan os.Signal, 1)
-	<-ready
+	// Wait for a termination signal.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	log.Info("Received shutdown signal, exiting")
 	return nil
 }
 
@@ -128,7 +119,7 @@ func (m *Manager) eventWorker(id int) {
 		err := m.handleProjectEvent(event)
 		if err != nil {
 			log.Errorf("Unable to handle project event: %v", err)
-			if event.Project != nil {
+			if event.Project != nil && m.NexusHook != nil {
 				if watchErr := m.NexusHook.SetWatcherStatusError(event.Project, err.Error()); watchErr != nil {
 					log.Errorf("Unable to set watcher error status: %v", watchErr)
 				}
@@ -136,7 +127,7 @@ func (m *Manager) eventWorker(id int) {
 			continue
 		}
 		// Success path: update watcher status to IDLE.
-		if event.Project != nil {
+			if event.Project != nil && m.NexusHook != nil {
 			if setStatusErr := m.NexusHook.SetWatcherStatusIdle(event.Project); setStatusErr != nil {
 				log.Errorf("Failed to update ProjectActiveWatcher object with an error: %v", setStatusErr)
 				return
