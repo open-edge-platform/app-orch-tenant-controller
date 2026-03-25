@@ -7,18 +7,18 @@ package manager
 import (
 	"context"
 	"fmt"
-        "os"
-        "os/signal"
-        "syscall"
-        "time"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-        "github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
-        nexushook "github.com/open-edge-platform/app-orch-tenant-controller/internal/nexus"
-        "github.com/open-edge-platform/app-orch-tenant-controller/internal/plugins"
-        "github.com/open-edge-platform/orch-library/go/dazl"
-        "google.golang.org/grpc"
-        "google.golang.org/grpc/health"
-        "google.golang.org/grpc/health/grpc_health_v1"
+	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
+	nexushook "github.com/open-edge-platform/app-orch-tenant-controller/internal/nexus"
+	"github.com/open-edge-platform/app-orch-tenant-controller/internal/plugins"
+	"github.com/open-edge-platform/orch-library/go/dazl"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 var log = dazl.GetPackageLogger()
