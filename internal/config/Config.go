@@ -140,14 +140,19 @@ func InitConfig() (Configuration, error) {
 
 	// MultiTenancyEnabled defaults to true for backward compatibility.
 	// Set MULTI_TENANCY_ENABLED=false to run in single-tenant mode (skips Nexus subscription).
-	multiTenancyEnabledStr := os.Getenv("MULTI_TENANCY_ENABLED")
-	if multiTenancyEnabledStr == "false" {
-		config.MultiTenancyEnabled = false
-	} else {
-		config.MultiTenancyEnabled = true
-	}
+        // Accepts any value recognised by strconv.ParseBool (true/false/1/0/TRUE/FALSE etc.).
+        // Unset or empty defaults to true; an unrecognised value is a fatal misconfiguration.
+        multiTenancyEnabledStr := os.Getenv("MULTI_TENANCY_ENABLED")
+        if multiTenancyEnabledStr == "" {
+                config.MultiTenancyEnabled = true
+        } else {
+                val, err := strconv.ParseBool(multiTenancyEnabledStr)
+                if err != nil {
+                        return config, fmt.Errorf("invalid MULTI_TENANCY_ENABLED value %q: must be true/false/1/0", multiTenancyEnabledStr)
+                }
+                config.MultiTenancyEnabled = val
+        }
 
-	var err error
 
 	initialSleepIntervalString := os.Getenv("INITIAL_SLEEP_INTERVAL")
 	initialSleepInterval, err := strconv.Atoi(initialSleepIntervalString)

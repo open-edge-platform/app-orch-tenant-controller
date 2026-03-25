@@ -7,15 +7,18 @@ package manager
 import (
 	"context"
 	"fmt"
-	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
-	nexushook "github.com/open-edge-platform/app-orch-tenant-controller/internal/nexus"
-	"github.com/open-edge-platform/app-orch-tenant-controller/internal/plugins"
-	"github.com/open-edge-platform/orch-library/go/dazl"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"os"
-	"time"
+        "os"
+        "os/signal"
+        "syscall"
+        "time"
+
+        "github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
+        nexushook "github.com/open-edge-platform/app-orch-tenant-controller/internal/nexus"
+        "github.com/open-edge-platform/app-orch-tenant-controller/internal/plugins"
+        "github.com/open-edge-platform/orch-library/go/dazl"
+        "google.golang.org/grpc"
+        "google.golang.org/grpc/health"
+        "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 var log = dazl.GetPackageLogger()
@@ -88,15 +91,20 @@ func (m *Manager) Start() error {
 		}
 	} else {
 		// Single-tenant mode: provision the default project once at startup,
-		// then wait. No Nexus subscription is needed.
+		// then wait for a termination signal. No Nexus subscription is needed.
 		log.Info("Multi-tenancy disabled: provisioning default project at startup")
-		m.eventChan = make(chan plugins.Event)
+		if m.Config.NumberWorkerThreads < 1 {
+			return fmt.Errorf("NumberWorkerThreads must be at least 1, got %d", m.Config.NumberWorkerThreads)
+		}
+		m.eventChan = make(chan plugins.Event, 1)
 		for i := 0; i < m.Config.NumberWorkerThreads; i++ {
 			go m.eventWorker(i)
 		}
 		m.CreateProject("defaultorg", "default", "default", nil)
-		ready := make(chan os.Signal, 1)
-		<-ready
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+		<-quit
+		log.Info("Received shutdown signal, exiting")
 		return nil
 	}
 
@@ -121,26 +129,21 @@ func (m *Manager) eventWorker(id int) {
 		if err != nil {
 			log.Errorf("Unable to handle project event: %v", err)
 			if event.Project != nil {
-				err = m.NexusHook.SetWatcherStatusError(event.Project, err.Error())
-				if err != nil {
-					log.Errorf("Unable to set watcher error status: %v", err)
+				if watchErr := m.NexusHook.SetWatcherStatusError(event.Project, err.Error()); watchErr != nil {
+					log.Errorf("Unable to set watcher error status: %v", watchErr)
 				}
 			}
-		} else {
-			// After processing, set the status to IDLE.
-			if event.Project != nil {
-				setStatusErr := m.NexusHook.SetWatcherStatusIdle(event.Project)
-				if setStatusErr != nil {
-					log.Errorf("Failed to update ProjectActiveWatcher object with an error: %v", setStatusErr)
-					return
-				}
+			continue
+		}
+		// Success path: update watcher status to IDLE.
+		if event.Project != nil {
+			if setStatusErr := m.NexusHook.SetWatcherStatusIdle(event.Project); setStatusErr != nil {
+				log.Errorf("Failed to update ProjectActiveWatcher object with an error: %v", setStatusErr)
+				return
 			}
-			if event.EventType == "delete" {
-				// free up the project watcher
-				if event.Project != nil && m.NexusHook != nil {
-					m.NexusHook.StopWatchingProject(event.Project)
-				}
-			}
+		}
+		if event.EventType == "delete" && event.Project != nil && m.NexusHook != nil {
+			m.NexusHook.StopWatchingProject(event.Project)
 		}
 		elapsed := time.Since(start)
 		log.Infof("Done with %s on worker %d for project %s elapsed time %d seconds", event.EventType, id, event.Name, int(elapsed.Seconds()))
