@@ -83,8 +83,14 @@ type Configuration struct {
 
 	// if this string is nonempty, provisioner will use a local manifest contianed in the string instead of using manifest from remote release service
 	UseLocalManifest string
+
+	// MultiTenancyEnabled controls whether multi-tenancy features are active.
+	// When false (single-tenant mode), the tenant controller skips Nexus subscription
+	// and instead provisions a single default project at startup.
+	MultiTenancyEnabled bool
 }
 
+// DumpConfig logs the current configuration values.
 func DumpConfig(config Configuration) {
 	log.Info("Creating Manager with config:")
 
@@ -109,6 +115,7 @@ func DumpConfig(config Configuration) {
 	log.Infof("   maxWaitTime: %s", config.MaxWaitTime)
 	log.Infof("   numberWorkerThreads: %d", config.NumberWorkerThreads)
 	log.Infof("   useLocalManifest: %s", config.UseLocalManifest)
+	log.Infof("   multiTenancyEnabled: %v", config.MultiTenancyEnabled)
 }
 
 func InitConfig() (Configuration, error) {
@@ -132,7 +139,21 @@ func InitConfig() (Configuration, error) {
 	config.ServiceAccount = os.Getenv("SERVICE_ACCOUNT")
 	config.UseLocalManifest = os.Getenv("USE_LOCAL_MANIFEST")
 
-	var err error
+	// MultiTenancyEnabled defaults to true for backward compatibility.
+	// Set MULTI_TENANCY_ENABLED=false to run in single-tenant mode (skips Nexus subscription).
+        // Accepts any value recognised by strconv.ParseBool (true/false/1/0/TRUE/FALSE etc.).
+        // Unset or empty defaults to true; an unrecognised value is a fatal misconfiguration.
+        multiTenancyEnabledStr := os.Getenv("MULTI_TENANCY_ENABLED")
+        if multiTenancyEnabledStr == "" {
+                config.MultiTenancyEnabled = true
+        } else {
+                val, err := strconv.ParseBool(multiTenancyEnabledStr)
+                if err != nil {
+                        return config, fmt.Errorf("invalid MULTI_TENANCY_ENABLED value %q: must be true/false/1/0", multiTenancyEnabledStr)
+                }
+                config.MultiTenancyEnabled = val
+        }
+
 
 	initialSleepIntervalString := os.Getenv("INITIAL_SLEEP_INTERVAL")
 	initialSleepInterval, err := strconv.Atoi(initialSleepIntervalString)

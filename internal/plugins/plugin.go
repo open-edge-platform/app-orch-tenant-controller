@@ -52,7 +52,7 @@ func Dispatch(ctx context.Context, event Event, hook *nexushook.Hook) error {
 	var err error
 	for _, plugin := range plugins {
 		log.Infof("Sending event %v to %s", event, plugin.Name())
-		if hook != nil {
+		if hook != nil && event.Project != nil {
 			err = hook.SetWatcherStatusInProgress(event.Project, fmt.Sprintf("Processing project %s with %s", event.EventType, plugin.Name()))
 		}
 		if err != nil {
@@ -76,7 +76,7 @@ func Dispatch(ctx context.Context, event Event, hook *nexushook.Hook) error {
 	}
 	log.Infof("Done dispatching event: %v", event)
 	if event.EventType == "create" {
-		if hook != nil {
+		if hook != nil && event.Project != nil {
 			err = hook.UpdateProjectManifestTag(event.Project)
 			if err != nil {
 				return err

@@ -7,6 +7,11 @@ package manager
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
 	nexushook "github.com/open-edge-platform/app-orch-tenant-controller/internal/nexus"
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/plugins"
@@ -14,8 +19,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	"os"
-	"time"
 )
 
 var log = dazl.GetPackageLogger()
@@ -79,21 +82,33 @@ func (m *Manager) Start() error {
 
 	// Create a new Nexus hook.
 	m.NexusHook = nexushook.NewNexusHook(m)
-	err = m.NexusHook.Subscribe()
-	if err != nil {
-		log.Errorf("Unable to subscribe to Nexus hook %v", err)
+
+	if m.Config.NumberWorkerThreads < 1 {
+		return fmt.Errorf("NumberWorkerThreads must be at least 1, got %d", m.Config.NumberWorkerThreads)
 	}
 
-	// set up event handling workers
-	m.eventChan = make(chan plugins.Event)
-
+	// Shared: set up event channel and worker goroutines for both modes.
+	m.eventChan = make(chan plugins.Event, 1)
 	for i := 0; i < m.Config.NumberWorkerThreads; i++ {
 		go m.eventWorker(i)
 	}
 
-	// Wait until interrupted
-	ready := make(chan os.Signal, 1)
-	<-ready
+	if m.Config.MultiTenancyEnabled {
+		// Multi-tenant mode: subscribe to Nexus for project lifecycle events.
+		err = m.NexusHook.Subscribe()
+		if err != nil {
+			log.Errorf("Unable to subscribe to Nexus hook %v", err)
+		}
+	} else {
+		log.Info("Multi-tenancy disabled: provisioning default project")
+		m.CreateProject("defaultorg", "default", "default", nil)
+	}
+
+	// Wait for a termination signal.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	log.Info("Received shutdown signal, exiting")
 	return nil
 }
 
@@ -104,23 +119,22 @@ func (m *Manager) eventWorker(id int) {
 		err := m.handleProjectEvent(event)
 		if err != nil {
 			log.Errorf("Unable to handle project event: %v", err)
-			err = m.NexusHook.SetWatcherStatusError(event.Project, err.Error())
-			if err != nil {
-				log.Errorf("Unable to set watcher error status: %v", err)
+			if event.Project != nil && m.NexusHook != nil {
+				if watchErr := m.NexusHook.SetWatcherStatusError(event.Project, err.Error()); watchErr != nil {
+					log.Errorf("Unable to set watcher error status: %v", watchErr)
+				}
 			}
-		} else {
-			// After processing, set the status to IDLE.
-			setStatusErr := m.NexusHook.SetWatcherStatusIdle(event.Project)
-			if setStatusErr != nil {
+			continue
+		}
+		// Success path: update watcher status to IDLE.
+			if event.Project != nil && m.NexusHook != nil {
+			if setStatusErr := m.NexusHook.SetWatcherStatusIdle(event.Project); setStatusErr != nil {
 				log.Errorf("Failed to update ProjectActiveWatcher object with an error: %v", setStatusErr)
 				return
 			}
-			if event.EventType == "delete" {
-				// free up the project watcher
-				if event.Project != nil && m.NexusHook != nil {
-					m.NexusHook.StopWatchingProject(event.Project)
-				}
-			}
+		}
+		if event.EventType == "delete" && event.Project != nil && m.NexusHook != nil {
+			m.NexusHook.StopWatchingProject(event.Project)
 		}
 		elapsed := time.Since(start)
 		log.Infof("Done with %s on worker %d for project %s elapsed time %d seconds", event.EventType, id, event.Name, int(elapsed.Seconds()))
@@ -153,9 +167,11 @@ func (m *Manager) handleProjectEvent(event plugins.Event) error {
 			break
 		}
 
-		err = m.NexusHook.SetWatcherStatusInProgress(event.Project, fmt.Sprintf("Retry backoff for project %s. Last error was %s", event.Name, err.Error()))
-		if err != nil {
-			return err
+		if event.Project != nil {
+			err = m.NexusHook.SetWatcherStatusInProgress(event.Project, fmt.Sprintf("Retry backoff for project %s. Last error was %s", event.Name, err.Error()))
+			if err != nil {
+				return err
+			}
 		}
 		log.Infof("Retrying in %d seconds", int(sleepInterval.Seconds()))
 		time.Sleep(sleepInterval)
