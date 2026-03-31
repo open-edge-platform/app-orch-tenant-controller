@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: (C) 2024 Intel Corporation
+# SPDX-FileCopyrightText: (C) 2026 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -14,7 +14,7 @@ COPY ./vendor ./vendor
 ARG TARGETPLATFORM
 
 RUN if [ "${TARGETPLATFORM}" = "linux/amd64" ] ; then \
-        CGO_ENABLED=0 go build -mod=vendor -gcflags="all=-spectre=all -N -l" -asmflags="all=-spectre=all" -trimpath -o provisioner ./cmd/provisioner ; \
+        CGO_ENABLED=0 go build -mod=vendor -gcflags="all=-spectre=all -N -l" -asmflags="-spectre=all" -trimpath -o provisioner ./cmd/provisioner ; \
     else  \
         CGO_ENABLED=0 go build -mod=vendor -trimpath -o provisioner ./cmd/provisioner ; \
     fi
