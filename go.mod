@@ -9,7 +9,7 @@ go 1.26.1
 require (
 	github.com/open-edge-platform/app-orch-catalog v0.17.0
 	github.com/open-edge-platform/app-orch-deployment/app-deployment-manager/api/nbi/v2 v2.4.3
-	github.com/open-edge-platform/orch-library/go v0.6.4-0.20260211092341-cfad67ad247d
+	github.com/open-edge-platform/orch-library/go v0.6.4-0.20260331163258-bead22552759
 	github.com/open-edge-platform/orch-library/go/dazl v0.5.4
 	github.com/open-edge-platform/orch-library/go/dazl/zap v0.5.4
 	github.com/open-edge-platform/orch-utils/tenancy-datamodel v1.2.2
