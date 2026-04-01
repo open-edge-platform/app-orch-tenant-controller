@@ -226,8 +226,8 @@ github.com/open-edge-platform/app-orch-catalog v0.17.0 h1:hOf6N35qepZURTdF+QqhcC
 github.com/open-edge-platform/app-orch-catalog v0.17.0/go.mod h1:pacGgba0HGZvPXHD1C0v4OKRbYjJ0PdqBdJkkZylQdY=
 github.com/open-edge-platform/app-orch-deployment/app-deployment-manager/api/nbi/v2 v2.4.3 h1:h02ac5zLpPX+zg1SFq+EkDTMG+YAfmK9VmWVqGOulIc=
 github.com/open-edge-platform/app-orch-deployment/app-deployment-manager/api/nbi/v2 v2.4.3/go.mod h1:bG6RcGbU0K8msdb7MtFOKhPzNSjHWXtL6j8iHLzrx2w=
-github.com/open-edge-platform/orch-library/go v0.6.4-0.20260211092341-cfad67ad247d h1:xRow90Mk5U2h+R60TTL8lPXIFbdQWSnHyg09vh8NEPo=
-github.com/open-edge-platform/orch-library/go v0.6.4-0.20260211092341-cfad67ad247d/go.mod h1:mYhs/KbcXPQWM+2cHZXyzeIIzM7xKvnNgsnHlFkXH0g=
+github.com/open-edge-platform/orch-library/go v0.6.4-0.20260331163258-bead22552759 h1:/MylPyaDQllnPSe0k8r9IB6k7elnGi1/9askIFbJxpY=
+github.com/open-edge-platform/orch-library/go v0.6.4-0.20260331163258-bead22552759/go.mod h1:qEGHc44CoKysPBKxLT+LYIOhI10ZZUEO0hH6S0suCdc=
 github.com/open-edge-platform/orch-library/go/dazl v0.5.4 h1:Rx/bSAZiLjEEBjUiJEzBvT0fQv5huT5FQ2Ke3IMUhiE=
 github.com/open-edge-platform/orch-library/go/dazl v0.5.4/go.mod h1:UiO3TOEqEuRT81OtgPsqR9LpB1887i5nk2TelhJksMY=
 github.com/open-edge-platform/orch-library/go/dazl/zap v0.5.4 h1:kDfNlrnTY+RLKEwhe6UWJJO1lqYCvMC0OTEOv9GVPPA=
