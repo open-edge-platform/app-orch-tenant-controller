@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: (C) 2024 Intel Corporation
+// SPDX-FileCopyrightText: (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 //nolint:revive // Internal package
@@ -101,7 +101,20 @@ func (m *Manager) Start() error {
 		}
 	} else {
 		log.Info("Multi-tenancy disabled: provisioning default project")
-		m.CreateProject("defaultorg", "default", "default", nil)
+		// Resolve the real Nexus-assigned UUID for the default project.
+		// Using the placeholder string "default" as the UUID causes plugins
+		// (e.g. catalog) to store data under that string; when users query
+		// via the API their JWT carries the real UUID → data is invisible.
+		lookupCtx, lookupCancel := context.WithTimeout(ctx, 2*time.Minute)
+		defer lookupCancel()
+		uuid, err := nexushook.LookupProjectUID(lookupCtx, "defaultorg", "default")
+		if err != nil {
+			log.Warnf("Could not resolve default project UUID from Nexus (%v); falling back to 'default'", err)
+			uuid = "default"
+		} else {
+			log.Infof("Resolved default project UUID: %s", uuid)
+		}
+		m.CreateProject("defaultorg", "default", uuid, nil)
 	}
 
 	// Wait for a termination signal.

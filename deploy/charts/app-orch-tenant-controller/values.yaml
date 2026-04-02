@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: (C) 2024 Intel Corporation
+# SPDX-FileCopyrightText: (C) 2026 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 ---
@@ -59,7 +59,7 @@ configProvisioner:
   releaseServiceRootUrl: "oci://registry-rs.edgeorchestration.intel.com"
   releaseServiceProxyRootUrl: "oci://rs-proxy.rs-proxy.svc.cluster.local:8443"
   manifestPath: "/edge-orch/en/file/cluster-extension-manifest"
-  manifestTag: "v1.1.2"
+  manifestTag: "v1.5.11"
 
   # optional proxy settings
   httpProxy: ""

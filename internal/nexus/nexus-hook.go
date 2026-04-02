@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: (C) 2024 Intel Corporation
+// SPDX-FileCopyrightText: (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 //nolint:revive // Internal package
@@ -390,5 +390,58 @@ func (h *Hook) projectUpdatedCallback(_, nexusProject *nexus.RuntimeprojectRunti
 func (h *Hook) projectUpdated(project NexusProjectInterface) {
 	if project.IsDeleted() {
 		h.deleteProject(project)
+	}
+}
+
+// LookupProjectUID returns the Nexus-assigned UUID for the given org/project by querying
+// the Nexus config CRDs directly via the in-cluster k8s API. It polls until the project
+// status is IDLE, mirroring the pattern used in the EMF tenant tooling.
+//
+// This is used in single-tenant mode where the Nexus subscription callback is skipped;
+// without the real UUID, plugins such as catalog would store data under the placeholder
+// string "default" rather than the UUID that users' JWT tokens reference.
+func LookupProjectUID(ctx context.Context, orgName, projectName string) (string, error) {
+	cfg, err := rest.InClusterConfig()
+	if err != nil {
+		return "", fmt.Errorf("LookupProjectUID: in-cluster config: %w", err)
+	}
+	client, err := nexus.NewForConfig(cfg)
+	if err != nil {
+		return "", fmt.Errorf("LookupProjectUID: nexus client: %w", err)
+	}
+	// SubscribeAll populates the local in-memory cache from the k8s CRDs.
+	client.SubscribeAll()
+
+	configNode := client.TenancyMultiTenancy().Config()
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			orgNode, err := configNode.GetOrgs(ctx, orgName)
+			if err != nil {
+				log.Infof("LookupProjectUID: org %s not in cache yet: %v", orgName, err)
+				continue
+			}
+			folder, err := orgNode.GetFolders(ctx, "default")
+			if err != nil {
+				log.Infof("LookupProjectUID: folder not in cache yet: %v", err)
+				continue
+			}
+			project, err := folder.GetProjects(ctx, projectName)
+			if err != nil {
+				log.Infof("LookupProjectUID: project %s not in cache yet: %v", projectName, err)
+				continue
+			}
+			uid := project.Status.ProjectStatus.UID
+			if uid == "" {
+				log.Infof("LookupProjectUID: project %s has empty UID, retrying", projectName)
+				continue
+			}
+			return uid, nil
+		case <-ctx.Done():
+			return "", fmt.Errorf("LookupProjectUID: timed out waiting for project %s/%s", orgName, projectName)
+		}
 	}
 }
