@@ -107,14 +107,14 @@ func (m *Manager) Start() error {
 		// via the API their JWT carries the real UUID → data is invisible.
 		lookupCtx, lookupCancel := context.WithTimeout(ctx, 2*time.Minute)
 		defer lookupCancel()
-		uuid, err := nexushook.LookupProjectUID(lookupCtx, "defaultorg", "default")
+		uuid, err := nexushook.LookupProjectUID(lookupCtx, "default", "default")
 		if err != nil {
 			log.Warnf("Could not resolve default project UUID from Nexus (%v); falling back to 'default'", err)
 			uuid = "default"
 		} else {
 			log.Infof("Resolved default project UUID: %s", uuid)
 		}
-		m.CreateProject("defaultorg", "default", uuid, nil)
+		m.CreateProject("default", "default", uuid, nil)
 	}
 
 	// Wait for a termination signal.
