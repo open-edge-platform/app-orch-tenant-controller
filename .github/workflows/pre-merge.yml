@@ -28,7 +28,7 @@ jobs:
     if: ${{ needs.pre-checks.outputs.filtered_projects != '[]' }}
     strategy:
       fail-fast: false
-    uses: open-edge-platform/orch-ci/.github/workflows/pre-merge.yml@cd3e9a8d77db98ea1b3001fd879bdf5a56baa5e7  # 2026.1.1
+    uses: open-edge-platform/orch-ci/.github/workflows/pre-merge.yml@df0faa34e13559f5b2847dc8633c65f32b07d9e5  # 2026.1.1
     with:
       bootstrap_tools: "go,gotools,golangci-lint2,nodejs,hadolint"
       run_version_check: true
