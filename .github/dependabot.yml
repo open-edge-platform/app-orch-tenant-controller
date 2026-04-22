@@ -23,8 +23,7 @@ updates:
         patterns:
           - "*open-edge-platform*"
   - package-ecosystem: "github-actions"
-    directories:
-      - "/"  # this enables searching only in /.github/workflows directory
+    directory: "/"
     schedule:
       interval: daily
     open-pull-requests-limit: 10
