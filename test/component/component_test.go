@@ -2076,7 +2076,6 @@ func (suite *ComponentTestSuite) testRealPluginSystemWorkflow() {
 		Organization: suite.testOrganization,
 		Name:         suite.testProjectName,
 		UUID:         suite.testProjectUUID,
-		Project:      nil,
 	}
 
 	log.Printf("Testing project creation workflow")
@@ -2112,7 +2111,6 @@ func (suite *ComponentTestSuite) testRealPluginSystemWorkflow() {
 		Organization: suite.testOrganization,
 		Name:         suite.testProjectName,
 		UUID:         suite.testProjectUUID,
-		Project:      nil,
 	}
 
 	deleteCtx, cancel := context.WithTimeout(suite.ctx, 10*time.Second)
