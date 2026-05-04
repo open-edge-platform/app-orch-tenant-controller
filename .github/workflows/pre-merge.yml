@@ -22,7 +22,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Verify Branch Name"
-        uses: open-edge-platform/orch-ci/verify-branch-name@cd3e9a8d77db98ea1b3001fd879bdf5a56baa5e7  # 2026.1.1
+        uses: open-edge-platform/orch-ci/verify-branch-name@2fceeae41ceea1224868f934faac0c92a1bc06fb  # 2026.1.1
   pre-merge-pipeline:
     needs: pre-checks
     if: ${{ needs.pre-checks.outputs.filtered_projects != '[]' }}
