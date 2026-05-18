@@ -6,22 +6,23 @@ package manager
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
-	nexushook "github.com/open-edge-platform/app-orch-tenant-controller/internal/nexus"
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/plugins"
 	"github.com/open-edge-platform/orch-library/go/dazl"
+	"github.com/open-edge-platform/orch-library/go/pkg/tenancy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 var log = dazl.GetPackageLogger()
+
+const controllerName = "app-orch-tenant-controller"
 
 // NewManager creates a new manager
 func NewManager(config config.Configuration) *Manager {
@@ -32,9 +33,8 @@ func NewManager(config config.Configuration) *Manager {
 
 // Manager single point of entry for the config provisioner
 type Manager struct {
-	Config    config.Configuration
-	NexusHook *nexushook.Hook
-	eventChan chan plugins.Event
+	Config config.Configuration
+	cancel context.CancelFunc
 }
 
 // Run starts the provisioner server manager
@@ -80,78 +80,37 @@ func (m *Manager) Start() error {
 		return err
 	}
 
-	// Create a new Nexus hook.
-	m.NexusHook = nexushook.NewNexusHook(m)
-
-	if m.Config.NumberWorkerThreads < 1 {
-		return fmt.Errorf("NumberWorkerThreads must be at least 1, got %d", m.Config.NumberWorkerThreads)
+	// Start tenancy poller.
+	tenantManagerURL := os.Getenv("TENANT_MANAGER_URL")
+	if tenantManagerURL == "" {
+		tenantManagerURL = "http://tenancy-manager.orch-iam:8080"
 	}
 
-	// Shared: set up event channel and worker goroutines for both modes.
-	m.eventChan = make(chan plugins.Event, 1)
-	for i := 0; i < m.Config.NumberWorkerThreads; i++ {
-		go m.eventWorker(i)
-	}
+	handler := &tenancyHandler{manager: m}
+	poller := tenancy.NewPoller(tenantManagerURL, controllerName, handler,
+		func(cfg *tenancy.PollerConfig) {
+			cfg.OnError = func(err error, msg string) {
+				log.Errorf("%s: %v", msg, err)
+			}
+		},
+	)
 
-	if m.Config.MultiTenancyEnabled {
-		// Multi-tenant mode: subscribe to Nexus for project lifecycle events.
-		err = m.NexusHook.Subscribe()
-		if err != nil {
-			log.Errorf("Unable to subscribe to Nexus hook %v", err)
+	pollerCtx, pollerCancel := context.WithCancel(context.Background())
+	m.cancel = pollerCancel
+
+	go func() {
+		if err := poller.Run(pollerCtx); err != nil && pollerCtx.Err() == nil {
+			log.Errorf("poller stopped with error: %v", err)
 		}
-	} else {
-		log.Info("Multi-tenancy disabled: provisioning default project")
-		// Resolve the real Nexus-assigned UUID for the default project.
-		// Using the placeholder string "default" as the UUID causes plugins
-		// (e.g. catalog) to store data under that string; when users query
-		// via the API their JWT carries the real UUID → data is invisible.
-		lookupCtx, lookupCancel := context.WithTimeout(ctx, 2*time.Minute)
-		defer lookupCancel()
-		uuid, err := nexushook.LookupProjectUID(lookupCtx, "default", "default")
-		if err != nil {
-			log.Warnf("Could not resolve default project UUID from Nexus (%v); falling back to 'default'", err)
-			uuid = "default"
-		} else {
-			log.Infof("Resolved default project UUID: %s", uuid)
-		}
-		m.CreateProject("default", "default", uuid, nil)
-	}
+	}()
 
 	// Wait for a termination signal.
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
 	log.Info("Received shutdown signal, exiting")
+	pollerCancel()
 	return nil
-}
-
-func (m *Manager) eventWorker(id int) {
-	for event := range m.eventChan {
-		start := time.Now()
-		log.Infof("Event worker %d found work on for project %s", id, event.Name)
-		err := m.handleProjectEvent(event)
-		if err != nil {
-			log.Errorf("Unable to handle project event: %v", err)
-			if event.Project != nil && m.NexusHook != nil {
-				if watchErr := m.NexusHook.SetWatcherStatusError(event.Project, err.Error()); watchErr != nil {
-					log.Errorf("Unable to set watcher error status: %v", watchErr)
-				}
-			}
-			continue
-		}
-		// Success path: update watcher status to IDLE.
-			if event.Project != nil && m.NexusHook != nil {
-			if setStatusErr := m.NexusHook.SetWatcherStatusIdle(event.Project); setStatusErr != nil {
-				log.Errorf("Failed to update ProjectActiveWatcher object with an error: %v", setStatusErr)
-				return
-			}
-		}
-		if event.EventType == "delete" && event.Project != nil && m.NexusHook != nil {
-			m.NexusHook.StopWatchingProject(event.Project)
-		}
-		elapsed := time.Since(start)
-		log.Infof("Done with %s on worker %d for project %s elapsed time %d seconds", event.EventType, id, event.Name, int(elapsed.Seconds()))
-	}
 }
 
 func (m *Manager) handleProjectEvent(event plugins.Event) error {
@@ -162,68 +121,32 @@ func (m *Manager) handleProjectEvent(event plugins.Event) error {
 	var err error
 
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), maxTimeout)
-
-		// dispatch the event
-		err = plugins.Dispatch(ctx, event, m.NexusHook)
-
-		cancel()
+		ctx, ctxCancel := context.WithTimeout(context.Background(), maxTimeout)
+		err = plugins.Dispatch(ctx, event, nil)
+		ctxCancel()
 
 		if err == nil {
-			return err
+			return nil
 		}
 		log.Infof("Error processing event, retrying: %+v", err)
 
-		// Check if the maximum wait time has been exceeded
 		if time.Since(startTime) > m.Config.MaxWaitTime {
-			log.Errorf("Failed to handle event %s within the maximum wait time\n", event.Name)
+			log.Errorf("Failed to handle event %s within the maximum wait time", event.Name)
 			break
 		}
 
-		if event.Project != nil {
-			err = m.NexusHook.SetWatcherStatusInProgress(event.Project, fmt.Sprintf("Retry backoff for project %s. Last error was %s", event.Name, err.Error()))
-			if err != nil {
-				return err
-			}
-		}
 		log.Infof("Retrying in %d seconds", int(sleepInterval.Seconds()))
 		time.Sleep(sleepInterval)
 	}
 	return err
 }
 
-func (m *Manager) CreateProject(organizationName string, projectName string, projectUUID string, project nexushook.NexusProjectInterface) {
-	log.Debugf("Creating project with organizationName=%s; projectName=%s; projectUUID=%s", organizationName, projectName, projectUUID)
-	e := plugins.Event{
-		EventType:    "create",
-		Organization: organizationName,
-		Name:         projectName,
-		UUID:         projectUUID,
-		Project:      project,
-	}
-	m.eventChan <- e
-}
-
-func (m *Manager) DeleteProject(organizationName string, projectName string, projectUUID string, project nexushook.NexusProjectInterface) {
-	log.Debugf("Deleting project with organizationName=%s; projectName=%s; projectUUID=%s", organizationName, projectName, projectUUID)
-	e := plugins.Event{
-		EventType:    "delete",
-		Organization: organizationName,
-		Name:         projectName,
-		UUID:         projectUUID,
-		Project:      project,
-	}
-	m.eventChan <- e
-}
-
-// Close kills the channels and manager related objects
+// Close cancels the poller and cleans up manager resources.
 func (m *Manager) Close() {
 	log.Info("Closing Manager")
-	close(m.eventChan)
-}
-
-func (m *Manager) ManifestTag() string {
-	return m.Config.ManifestTag
+	if m.cancel != nil {
+		m.cancel()
+	}
 }
 
 // HealthCheck is a struct receiver implementing onos northbound Register interface.
@@ -232,4 +155,41 @@ type HealthCheck struct{}
 // Register is a method to register a health check gRPC service.
 func (h HealthCheck) Register(s *grpc.Server) {
 	grpc_health_v1.RegisterHealthServer(s, health.NewServer())
+}
+
+// tenancyHandler implements tenancy.Handler, calling the plugin pipeline
+// synchronously so the Poller can accurately report status.
+type tenancyHandler struct {
+	manager *Manager
+}
+
+func (h *tenancyHandler) HandleEvent(_ context.Context, event tenancy.Event) error {
+	if event.ResourceType != "project" {
+		return nil // app-orch only handles project events
+	}
+
+	orgName := ""
+	if event.OrgName != nil {
+		orgName = *event.OrgName
+	}
+
+	e := plugins.Event{
+		Organization: orgName,
+		Name:         event.ResourceName,
+		UUID:         event.ResourceID.String(),
+	}
+
+	switch event.EventType {
+	case "created":
+		e.EventType = "create"
+	case "deleted":
+		e.EventType = "delete"
+	default:
+		return nil
+	}
+
+	// Run the plugin pipeline synchronously. The Poller sets in_progress
+	// before calling HandleEvent and writes completed/error after it
+	// returns, so the status accurately reflects the outcome.
+	return h.manager.handleProjectEvent(e)
 }

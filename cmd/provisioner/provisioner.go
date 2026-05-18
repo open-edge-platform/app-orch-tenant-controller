@@ -5,13 +5,14 @@
 package main
 
 import (
+	"os"
+
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/config"
 	"github.com/open-edge-platform/app-orch-tenant-controller/internal/manager"
 	"github.com/open-edge-platform/orch-library/go/dazl"
 	_ "github.com/open-edge-platform/orch-library/go/dazl/zap"
-	"os"
-	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	k8smanager "sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )

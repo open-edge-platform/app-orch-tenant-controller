@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 
-	nexushook "github.com/open-edge-platform/app-orch-tenant-controller/internal/nexus"
 	"github.com/open-edge-platform/orch-library/go/dazl"
 )
 
@@ -19,7 +18,6 @@ type Event struct {
 	Organization string
 	Name         string
 	UUID         string
-	Project      nexushook.NexusProjectInterface
 }
 
 type PluginData *map[string]string
@@ -47,17 +45,13 @@ func Initialize(ctx context.Context) error {
 	return nil
 }
 
-func Dispatch(ctx context.Context, event Event, hook *nexushook.Hook) error {
-	data := &map[string]string{}
-	var err error
+func Dispatch(ctx context.Context, event Event, data PluginData) error {
+	if data == nil {
+		data = &map[string]string{}
+	}
 	for _, plugin := range plugins {
 		log.Infof("Sending event %v to %s", event, plugin.Name())
-		if hook != nil && event.Project != nil {
-			err = hook.SetWatcherStatusInProgress(event.Project, fmt.Sprintf("Processing project %s with %s", event.EventType, plugin.Name()))
-		}
-		if err != nil {
-			return err
-		}
+		var err error
 		if event.EventType == "create" {
 			err = plugin.CreateEvent(ctx, event, data)
 		} else if event.EventType == "delete" {
@@ -67,22 +61,11 @@ func Dispatch(ctx context.Context, event Event, hook *nexushook.Hook) error {
 		}
 		if err != nil {
 			log.Infof("Error processing event %v by %s, error is %v", event, plugin.Name(), err)
-		} else {
-			log.Infof("Successfully processed event %v by %s", event, plugin.Name())
-		}
-		if err != nil {
 			return err
 		}
+		log.Infof("Successfully processed event %v by %s", event, plugin.Name())
 	}
 	log.Infof("Done dispatching event: %v", event)
-	if event.EventType == "create" {
-		if hook != nil && event.Project != nil {
-			err = hook.UpdateProjectManifestTag(event.Project)
-			if err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
 
