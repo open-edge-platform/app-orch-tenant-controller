@@ -4,7 +4,7 @@
 
 module github.com/open-edge-platform/app-orch-tenant-controller
 
-go 1.26.1
+go 1.26.3
 
 require (
 	github.com/open-edge-platform/app-orch-catalog v0.17.3
